@@ -63,6 +63,8 @@
       <tr>
         <th>Nome Completo</th>
         <th>Data de Nascimento</th>
+        <th>CPF</th>
+        <th>WhatsApp</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -82,10 +84,12 @@
       // 🔹 Remove as 4 primeiras linhas da planilha
       rows.splice(0, 4);
 
-      // 🔹 Monta array com nome e data de nascimento
+      // 🔹 Monta array com dados
       let data = rows.map(row => ({
         nome: row[1],            // índice 1 → Nome Completo
-        nascimento: row[2] || "" // índice 2 → Data de Nascimento
+        nascimento: row[2] || "",// índice 2 → Data de Nascimento
+        cpf: row[3] || "",       // índice 3 → CPF
+        whatsapp: row[4] || ""   // índice 4 → WhatsApp
       }));
 
       // 🔹 Filtra apenas registros com nomes válidos
@@ -109,8 +113,16 @@
         const tdData = document.createElement("td");
         tdData.textContent = item.nascimento;
 
+        const tdCpf = document.createElement("td");
+        tdCpf.textContent = item.cpf;
+
+        const tdWhatsapp = document.createElement("td");
+        tdWhatsapp.textContent = item.whatsapp;
+
         tr.appendChild(tdNome);
         tr.appendChild(tdData);
+        tr.appendChild(tdCpf);
+        tr.appendChild(tdWhatsapp);
         tbody.appendChild(tr);
       });
 

@@ -62,6 +62,7 @@
     <thead>
       <tr>
         <th>Nome Completo</th>
+        <th>Data de Nascimento</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -81,41 +82,50 @@
       // 🔹 Remove as 4 primeiras linhas da planilha
       rows.splice(0, 4);
 
-      let names = rows.map(row => row[1]); // Pega a segunda coluna (índice 1)
+      // 🔹 Monta array com nome e data de nascimento
+      let data = rows.map(row => ({
+        nome: row[1],            // índice 1 → Nome Completo
+        nascimento: row[2] || "" // índice 2 → Data de Nascimento
+      }));
 
-      // 🔹 Filtra apenas nomes válidos com 2 ou mais palavras
-      names = names.filter(name => {
-        if (!name) return false; // ignora vazio
-        const wordCount = name.trim().split(/\s+/).length;
-        return wordCount >= 2; // mantém só nomes com pelo menos 2 palavras
+      // 🔹 Filtra apenas registros com nomes válidos
+      data = data.filter(item => {
+        if (!item.nome) return false;
+        const wordCount = item.nome.trim().split(/\s+/).length;
+        return wordCount >= 2;
       });
 
-      return names;
+      return data;
     }
 
-    function renderTable(names) {
+    function renderTable(data) {
       tbody.innerHTML = "";
-      names.forEach(name => {
+      data.forEach(item => {
         const tr = document.createElement("tr");
-        const td = document.createElement("td");
-        td.textContent = name;
-        tr.appendChild(td);
+
+        const tdNome = document.createElement("td");
+        tdNome.textContent = item.nome;
+
+        const tdData = document.createElement("td");
+        tdData.textContent = item.nascimento;
+
+        tr.appendChild(tdNome);
+        tr.appendChild(tdData);
         tbody.appendChild(tr);
       });
 
-      // Atualiza contador
-      counter.textContent = `Total de inscritos: ${names.length}`;
+      counter.textContent = `Total de inscritos: ${data.length}`;
     }
 
     searchInput.addEventListener("input", async (event) => {
       const searchTerm = event.target.value.toLowerCase();
-      const names = await fetchData();
-      const filteredNames = names.filter(name => name.toLowerCase().includes(searchTerm));
-      renderTable(filteredNames);
+      const data = await fetchData();
+      const filtered = data.filter(item => item.nome.toLowerCase().includes(searchTerm));
+      renderTable(filtered);
     });
 
     // Carrega os dados ao iniciar
-    fetchData().then(names => renderTable(names));
+    fetchData().then(data => renderTable(data));
   </script>
 </body>
 </html>

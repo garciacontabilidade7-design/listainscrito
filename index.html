@@ -53,7 +53,10 @@
       border: 1px solid #ddd;
       border-radius: 4px;
     }
+    .small { font-size: 0.9rem; color: #555; }
   </style>
+  <!-- PapaParse (parser robusto de CSV) -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
   <h1>Lista de Inscritos</h1>
@@ -70,6 +73,7 @@
     </thead>
     <tbody></tbody>
   </table>
+  <div class="small">Observação: o parser agora trata corretamente células com vírgulas; o WhatsApp é extraído da coluna 10 (J).</div>
 
   <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/1bBf-BGm2yYvLFL9krgcr5a5296As-oppljsw7pCeGqA/export?format=csv&gid=469018608";
@@ -77,31 +81,72 @@
     const counter = document.getElementById("counter");
     const tbody = document.querySelector("#inscritos tbody");
 
+    // Formata telefone para (XX) 9XXXX-XXXX (opcional)
+    function formatPhone(num) {
+      if (!num) return "";
+      // Remove zeros à esquerda estranhos
+      num = num.replace(/^0+/, "");
+      // Se tiver 11 dígitos (55 + DDD + número?) ou 10, tenta formatar inteligentemente
+      const only = num.replace(/\D/g, '');
+      if (only.length === 11) {
+        return '(' + only.slice(0,2) + ') ' + only.slice(2,7) + '-' + only.slice(7);
+      } else if (only.length === 10) {
+        return '(' + only.slice(0,2) + ') ' + only.slice(2,6) + '-' + only.slice(6);
+      } else {
+        return num; // retorna como veio (apenas números)
+      }
+    }
+
     async function fetchData() {
       const response = await fetch(CSV_URL);
+      if (!response.ok) throw new Error('Erro ao buscar CSV: ' + response.status);
       const text = await response.text();
-      const rows = text.split("\n").map(row => row.split(","));
 
-      // 🔹 Remove as 4 primeiras linhas da planilha
-      rows.splice(0, 4);
+      // Use PapaParse para parse correto (mantém campos com vírgula entre aspas)
+      const parsed = Papa.parse(text, { skipEmptyLines: true }).data; // array de arrays
 
-      // 🔹 Monta array com dados
+      // Encontrar a primeira linha que parece conter nomes (coluna índice 1 com pelo menos 2 palavras)
+      let startIndex = 0;
+      for (let i = 0; i < parsed.length; i++) {
+        const r = parsed[i];
+        if (r && r[1]) {
+          const wc = r[1].toString().trim().split(/\s+/).filter(Boolean).length;
+          if (wc >= 2) { startIndex = i; break; }
+        }
+      }
+
+      // Pega os dados a partir desse índice
+      const rows = parsed.slice(startIndex);
+
+      // Monta array com dados, garantindo que pegamos a coluna correta J => índice 9
       let data = rows.map(row => {
-        let telefone = row[9] || ""; // índice 9 → WhatsApp
-        telefone = telefone.replace(/\D+/g, ""); // remove tudo que não é número
+        const nome = row[1] ? row[1].toString().trim() : "";
+        const nascimento = row[2] ? row[2].toString().trim() : "";
+        const cpf = row[3] ? row[3].toString().trim() : "";
+        // Coluna J (10ª) é índice 9
+        let whatsappRaw = row[9] ? row[9].toString() : "";
+        // Extrai apenas dígitos
+        let whatsappDigits = whatsappRaw.replace(/\D/g, '');
+        // Se o campo contiver texto como "Li e concordo..." e não houver dígitos, tenta procurar dígitos em colunas seguintes (fallback)
+        if (!whatsappDigits) {
+          for (let k = 10; k < row.length; k++) {
+            const alt = (row[k] || '').toString().replace(/\D/g, '');
+            if (alt) { whatsappDigits = alt; break; }
+          }
+        }
         return {
-          nome: row[1] || "",
-          nascimento: row[2] || "",
-          cpf: row[3] || "",
-          whatsapp: telefone
+          nome,
+          nascimento,
+          cpf,
+          whatsapp: whatsappDigits
         };
       });
 
-      // 🔹 Filtra apenas registros com nomes válidos
+      // Filtra apenas registros com nomes válidos (>=2 palavras)
       data = data.filter(item => {
         if (!item.nome) return false;
-        const wordCount = item.nome.trim().split(/\s+/).length;
-        return wordCount >= 2;
+        const wc = item.nome.trim().split(/\s+/).filter(Boolean).length;
+        return wc >= 2;
       });
 
       return data;
@@ -122,7 +167,7 @@
         tdCpf.textContent = item.cpf;
 
         const tdWhatsapp = document.createElement("td");
-        tdWhatsapp.textContent = item.whatsapp;
+        tdWhatsapp.textContent = item.whatsapp ? formatPhone(item.whatsapp) : "";
 
         tr.appendChild(tdNome);
         tr.appendChild(tdData);
@@ -134,6 +179,7 @@
       counter.textContent = `Total de inscritos: ${data.length}`;
     }
 
+    // Busca ao digitar
     searchInput.addEventListener("input", async (event) => {
       const searchTerm = event.target.value.toLowerCase();
       const data = await fetchData();
@@ -142,7 +188,10 @@
     });
 
     // Carrega os dados ao iniciar
-    fetchData().then(data => renderTable(data));
+    fetchData().then(data => renderTable(data)).catch(err => {
+      console.error(err);
+      alert('Erro ao carregar dados: ' + err.message);
+    });
   </script>
 </body>
 </html>

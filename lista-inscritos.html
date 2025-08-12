@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lista de Inscritos</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .counter {
+      text-align: center;
+      font-size: 1.3rem;
+      margin-top: 10px;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+      border-radius: 8px;
+      display: inline-block;
+      min-width: 200px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border: 1px solid #ddd;
+    }
+    th {
+      background-color: #4CAF50;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Lista de Inscritos</h1>
+  <div class="counter" id="counter">Total de inscritos: 0</div>
+  <input type="text" id="search" placeholder="Buscar por nome..." />
+  <table id="inscritos">
+    <thead>
+      <tr>
+        <th>Nome Completo</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/1bBf-BGm2yYvLFL9krgcr5a5296As-oppljsw7pCeGqA/export?format=csv&gid=469018608";
+    const searchInput = document.getElementById("search");
+    const counter = document.getElementById("counter");
+    const tbody = document.querySelector("#inscritos tbody");
+
+    async function fetchData() {
+      const response = await fetch(CSV_URL);
+      const text = await response.text();
+      const rows = text.split("\n").map(row => row.split(","));
+
+      // 🔹 Remove as 4 primeiras linhas da planilha
+      rows.splice(0, 4);
+
+      let names = rows.map(row => row[1]); // Pega a segunda coluna (índice 1)
+
+      // 🔹 Filtra apenas nomes válidos com 2 ou mais palavras
+      names = names.filter(name => {
+        if (!name) return false; // ignora vazio
+        const wordCount = name.trim().split(/\s+/).length;
+        return wordCount >= 2; // mantém só nomes com pelo menos 2 palavras
+      });
+
+      return names;
+    }
+
+    function renderTable(names) {
+      tbody.innerHTML = "";
+      names.forEach(name => {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.textContent = name;
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      });
+
+      // Atualiza contador
+      counter.textContent = `Total de inscritos: ${names.length}`;
+    }
+
+    searchInput.addEventListener("input", async (event) => {
+      const searchTerm = event.target.value.toLowerCase();
+      const names = await fetchData();
+      const filteredNames = names.filter(name => name.toLowerCase().includes(searchTerm));
+      renderTable(filteredNames);
+    });
+
+    // Carrega os dados ao iniciar
+    fetchData().then(names => renderTable(names));
+  </script>
+</body>
+</html>

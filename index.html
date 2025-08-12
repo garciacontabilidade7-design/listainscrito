@@ -55,7 +55,6 @@
     }
     .small { font-size: 0.9rem; color: #555; }
   </style>
-  <!-- PapaParse (parser robusto de CSV) -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -81,19 +80,16 @@
     const counter = document.getElementById("counter");
     const tbody = document.querySelector("#inscritos tbody");
 
-    // Formata telefone para (XX) 9XXXX-XXXX (opcional)
     function formatPhone(num) {
       if (!num) return "";
-      // Remove zeros à esquerda estranhos
       num = num.replace(/^0+/, "");
-      // Se tiver 11 dígitos (55 + DDD + número?) ou 10, tenta formatar inteligentemente
       const only = num.replace(/\D/g, '');
       if (only.length === 11) {
         return '(' + only.slice(0,2) + ') ' + only.slice(2,7) + '-' + only.slice(7);
       } else if (only.length === 10) {
         return '(' + only.slice(0,2) + ') ' + only.slice(2,6) + '-' + only.slice(6);
       } else {
-        return num; // retorna como veio (apenas números)
+        return num;
       }
     }
 
@@ -101,52 +97,45 @@
       const response = await fetch(CSV_URL);
       if (!response.ok) throw new Error('Erro ao buscar CSV: ' + response.status);
       const text = await response.text();
+      const parsed = Papa.parse(text, { skipEmptyLines: true }).data;
 
-      // Use PapaParse para parse correto (mantém campos com vírgula entre aspas)
-      const parsed = Papa.parse(text, { skipEmptyLines: true }).data; // array de arrays
-
-      // Encontrar a primeira linha que parece conter nomes (coluna índice 1 com pelo menos 2 palavras)
+      // Ignora linha de cabeçalho "Nome Completo" e similares
       let startIndex = 0;
       for (let i = 0; i < parsed.length; i++) {
         const r = parsed[i];
         if (r && r[1]) {
-          const wc = r[1].toString().trim().split(/\s+/).filter(Boolean).length;
-          if (wc >= 2) { startIndex = i; break; }
+          const nomeTest = r[1].toString().trim().toLowerCase();
+          if (
+            nomeTest !== "nome completo" &&
+            nomeTest.split(/\s+/).length >= 2
+          ) {
+            startIndex = i;
+            break;
+          }
         }
       }
 
-      // Pega os dados a partir desse índice
       const rows = parsed.slice(startIndex);
 
-      // Monta array com dados, garantindo que pegamos a coluna correta J => índice 9
       let data = rows.map(row => {
         const nome = row[1] ? row[1].toString().trim() : "";
         const nascimento = row[2] ? row[2].toString().trim() : "";
         const cpf = row[3] ? row[3].toString().trim() : "";
-        // Coluna J (10ª) é índice 9
         let whatsappRaw = row[9] ? row[9].toString() : "";
-        // Extrai apenas dígitos
         let whatsappDigits = whatsappRaw.replace(/\D/g, '');
-        // Se o campo contiver texto como "Li e concordo..." e não houver dígitos, tenta procurar dígitos em colunas seguintes (fallback)
         if (!whatsappDigits) {
           for (let k = 10; k < row.length; k++) {
             const alt = (row[k] || '').toString().replace(/\D/g, '');
             if (alt) { whatsappDigits = alt; break; }
           }
         }
-        return {
-          nome,
-          nascimento,
-          cpf,
-          whatsapp: whatsappDigits
-        };
+        return { nome, nascimento, cpf, whatsapp: whatsappDigits };
       });
 
-      // Filtra apenas registros com nomes válidos (>=2 palavras)
       data = data.filter(item => {
         if (!item.nome) return false;
         const wc = item.nome.trim().split(/\s+/).filter(Boolean).length;
-        return wc >= 2;
+        return wc >= 2 && item.nome.toLowerCase() !== "nome completo";
       });
 
       return data;
@@ -179,7 +168,6 @@
       counter.textContent = `Total de inscritos: ${data.length}`;
     }
 
-    // Busca ao digitar
     searchInput.addEventListener("input", async (event) => {
       const searchTerm = event.target.value.toLowerCase();
       const data = await fetchData();
@@ -187,7 +175,6 @@
       renderTable(filtered);
     });
 
-    // Carrega os dados ao iniciar
     fetchData().then(data => renderTable(data)).catch(err => {
       console.error(err);
       alert('Erro ao carregar dados: ' + err.message);

@@ -80,19 +80,22 @@
     async function fetchData() {
       const response = await fetch(CSV_URL);
       const text = await response.text();
-      // quebra linhas preservando células (simples)
       const rows = text.split("\n").map(row => row.split(","));
 
       // 🔹 Remove as 4 primeiras linhas da planilha
       rows.splice(0, 4);
 
       // 🔹 Monta array com dados
-      let data = rows.map(row => ({
-        nome: row[1] || "",            // índice 1 → Nome Completo
-        nascimento: row[2] || "",     // índice 2 → Data de Nascimento
-        cpf: row[3] || "",            // índice 3 → CPF
-        whatsapp: row[9] || ""        // índice 9 → WhatsApp (coluna 10)
-      }));
+      let data = rows.map(row => {
+        let telefone = row[9] || ""; // índice 9 → WhatsApp
+        telefone = telefone.replace(/\D+/g, ""); // remove tudo que não é número
+        return {
+          nome: row[1] || "",
+          nascimento: row[2] || "",
+          cpf: row[3] || "",
+          whatsapp: telefone
+        };
+      });
 
       // 🔹 Filtra apenas registros com nomes válidos
       data = data.filter(item => {

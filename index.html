@@ -74,6 +74,16 @@
       border-bottom: 1px solid #ddd;
     }
 
+    a.whatsapp-link {
+      color: #25D366;
+      font-weight: bold;
+      text-decoration: none;
+    }
+
+    a.whatsapp-link:hover {
+      text-decoration: underline;
+    }
+
     @media (max-width: 768px) {
       .contador {
         display: block;
@@ -119,15 +129,15 @@
       const cabecalhos = linhas[0];
       const dados = linhas.slice(1);
 
-      // Ignorar colunas A, N, O (índices 0, 13, 14)
-      const colunasPermitidas = cabecalhos.map((_, i) => i).filter(i => i !== 0 && i !== 13 && i !== 14);
+      // Colunas específicas: Nome(1), Data Nasc(2), CPF(3), Opção(4), Tamanho(5), Camiseta(6), Opção extra(7), WhatsApp(9), Email(10), Escolaridade(11)
+      const colunasPermitidas = [1, 2, 3, 4, 5, 6, 7, 9, 10, 11];
 
       // Montar cabeçalho
       const cabecalhoEl = document.getElementById("cabecalho");
       cabecalhoEl.innerHTML = "";
       colunasPermitidas.forEach(i => {
         const th = document.createElement("th");
-        th.textContent = cabecalhos[i];
+        th.textContent = cabecalhos[i] || "";
         cabecalhoEl.appendChild(th);
       });
 
@@ -139,7 +149,17 @@
           const tr = document.createElement("tr");
           colunasPermitidas.forEach(i => {
             const td = document.createElement("td");
-            td.textContent = linha[i] || "";
+
+            if (i === 9) { // Coluna WhatsApp
+              let numero = (linha[i] || "").replace(/\D/g, ""); // apenas números
+              if (numero) {
+                let link = "https://wa.me/55" + numero;
+                td.innerHTML = `<a href="${link}" target="_blank" class="whatsapp-link">${numero}</a>`;
+              }
+            } else {
+              td.textContent = linha[i] || "";
+            }
+
             tr.appendChild(td);
           });
           corpoEl.appendChild(tr);

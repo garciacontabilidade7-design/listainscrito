@@ -7,166 +7,172 @@
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #f4f4f4;
       margin: 0;
-      padding: 20px;
-      background: #f8f9fa;
+      padding: 0;
     }
 
     h1 {
       text-align: center;
-      margin-bottom: 10px;
-    }
-
-    .top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    #searchInput {
-      padding: 8px;
-      width: 250px;
-      max-width: 100%;
-      border: 1px solid #ccc;
-      border-radius: 5px;
+      margin: 20px 0;
     }
 
     .contador {
+      margin: 10px;
+      padding: 10px 20px;
+      background: #4CAF50;
+      color: white;
       font-weight: bold;
+      border-radius: 8px;
+      display: inline-block;
     }
 
-    .table-container {
+    .busca-container {
+      margin: 10px;
+      text-align: left;
+    }
+
+    .busca-container input {
+      padding: 10px;
+      width: 100%;
+      max-width: 400px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .tabela-container {
       overflow-x: auto;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      background: white;
+      margin: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      max-height: 70vh;
+      overflow-y: auto;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 900px;
+      min-width: 800px;
     }
 
-    thead {
-      background: #4CAF50;
-      color: white;
+    thead th {
       position: sticky;
       top: 0;
-      z-index: 2;
-    }
-
-    th, td {
+      background: #4CAF50;
+      color: white;
       padding: 10px;
       text-align: left;
-      border-bottom: 1px solid #ddd;
-      font-size: 14px;
+      border-bottom: 2px solid #ddd;
     }
 
     tbody tr:nth-child(even) {
-      background-color: #f2f2f2;
+      background: #f9f9f9;
     }
 
-    tbody tr:hover {
-      background-color: #e6f7ff;
+    tbody td {
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
     }
 
     @media (max-width: 768px) {
-      th, td {
-        font-size: 12px;
-        padding: 8px;
+      .contador {
+        display: block;
+        text-align: center;
+      }
+
+      .busca-container {
+        text-align: center;
+      }
+
+      .busca-container input {
+        max-width: 100%;
       }
     }
   </style>
 </head>
 <body>
-
   <h1>Lista de Inscritos</h1>
 
-  <div class="top-bar">
-    <input type="text" id="searchInput" placeholder="🔍 Buscar por nome...">
-    <div class="contador">Total de inscritos: <span id="contador">0</span></div>
+  <div class="contador" id="contador">Total de inscritos: 0</div>
+
+  <div class="busca-container">
+    <input type="text" id="busca" placeholder="Buscar por nome...">
   </div>
 
-  <div class="table-container">
-    <table id="tabela-inscritos">
+  <div class="tabela-container">
+    <table id="tabela">
       <thead>
-        <tr>
-          <th>Nome completo</th>
-          <th>Data de Nascimento</th>
-          <th>CPF</th>
-          <th>Opção</th>
-          <th>Tamanho</th>
-          <th>Camiseta</th>
-          <th>Opção extra</th>
-          <th>WhatsApp</th>
-          <th>Email</th>
-          <th>Nível Escolaridade</th>
-        </tr>
+        <tr id="cabecalho"></tr>
       </thead>
-      <tbody id="tabela-body"></tbody>
+      <tbody id="corpo"></tbody>
     </table>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?gid=1297981915&single=true&output=csv";
 
-    const tbody = document.getElementById("tabela-body");
-    const contador = document.getElementById("contador");
-    const searchInput = document.getElementById("searchInput");
+    async function carregarInscritos() {
+      const resposta = await fetch(CSV_URL);
+      const texto = await resposta.text();
 
-    let todasLinhas = [];
+      const linhas = texto.split("\n").map(l => l.split(","));
+      const cabecalhos = linhas[0];
+      const dados = linhas.slice(1);
 
-    function atualizarContador() {
-      const visiveis = [...tbody.querySelectorAll("tr")]
-        .filter(tr => tr.style.display !== "none").length;
-      contador.textContent = visiveis;
-    }
+      // Ignorar colunas A, N, O (índices 0, 13, 14)
+      const colunasPermitidas = cabecalhos.map((_, i) => i).filter(i => i !== 0 && i !== 13 && i !== 14);
 
-    function aplicarFiltro() {
-      const filtro = searchInput.value.toLowerCase();
-      [...tbody.querySelectorAll("tr")].forEach(tr => {
-        const nome = tr.querySelector("td")?.textContent.toLowerCase() || "";
-        tr.style.display = nome.includes(filtro) ? "" : "none";
+      // Montar cabeçalho
+      const cabecalhoEl = document.getElementById("cabecalho");
+      cabecalhoEl.innerHTML = "";
+      colunasPermitidas.forEach(i => {
+        const th = document.createElement("th");
+        th.textContent = cabecalhos[i];
+        cabecalhoEl.appendChild(th);
       });
-      atualizarContador();
+
+      const corpoEl = document.getElementById("corpo");
+      corpoEl.innerHTML = "";
+
+      dados.forEach(linha => {
+        if (linha.length > 1) {
+          const tr = document.createElement("tr");
+          colunasPermitidas.forEach(i => {
+            const td = document.createElement("td");
+            td.textContent = linha[i] || "";
+            tr.appendChild(td);
+          });
+          corpoEl.appendChild(tr);
+        }
+      });
+
+      atualizarContagem();
     }
 
-    Papa.parse(CSV_URL, {
-      download: true,
-      header: true,
-      complete: function(results) {
-        const data = results.data;
-        data.forEach(row => {
-          if (!row["NOME COMPLETO"]) return;
+    function atualizarContagem() {
+      const linhas = document.querySelectorAll("#corpo tr");
+      document.getElementById("contador").textContent = "Total de inscritos: " + linhas.length;
+    }
 
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${row["NOME COMPLETO"] || ""}</td>
-            <td>${row["Data de Nascimento do Inscrito"] || ""}</td>
-            <td>${row["SEU CPF APENAS NÚMEROS"] || ""}</td>
-            <td>${row["ESCOLHA UMA OPÇÃO"] || ""}</td>
-            <td>${row["ESCOLHA UM TAMANHO"] || ""}</td>
-            <td>${row["CAMISETAS ADULTAS"] || ""}</td>
-            <td>${row["ESCOLHA UMA OPÇÃO.1"] || ""}</td>
-            <td>${row["Número do telefone WhatsApp"] || ""}</td>
-            <td>${row["Seu e-mail aqui"] || ""}</td>
-            <td>${row["NIVEL DE ESCOLARIDADE"] || ""}</td>
-          `;
-          tbody.appendChild(tr);
-        });
+    document.getElementById("busca").addEventListener("input", function () {
+      const filtro = this.value.toLowerCase();
+      const linhas = document.querySelectorAll("#corpo tr");
+      let contador = 0;
 
-        todasLinhas = [...tbody.querySelectorAll("tr")];
-        atualizarContador();
-      }
+      linhas.forEach(linha => {
+        const nome = linha.cells[0]?.textContent.toLowerCase() || "";
+        if (nome.includes(filtro)) {
+          linha.style.display = "";
+          contador++;
+        } else {
+          linha.style.display = "none";
+        }
+      });
+
+      document.getElementById("contador").textContent = "Total de inscritos: " + contador;
     });
 
-    searchInput.addEventListener("input", aplicarFiltro);
+    carregarInscritos();
   </script>
-
 </body>
 </html>

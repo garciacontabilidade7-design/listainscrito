@@ -13,7 +13,8 @@
     .tabela-container { overflow-x:auto; margin:10px; border:1px solid #ddd; border-radius:5px; max-height:70vh; overflow-y:auto; background:#fff; }
     table { width:100%; border-collapse:collapse; min-width:900px; font-size:14px; }
     thead th { position:sticky; top:0; background:#4CAF50; color:#fff; padding:10px; text-align:left; border-bottom:2px solid #ddd; }
-    tbody tr:nth-child(even) { background:#f9f9f9; }
+    tbody tr:nth-child(even) { background:#E2F0D9; } /* Verde claro */
+    tbody tr:nth-child(odd) { background:#FFFFFF; }  /* Branco */
     tbody td { padding:8px; border-bottom:1px solid #eee; vertical-align:top; }
     a.whatsapp-link { color:#25D366; font-weight:bold; text-decoration:none; }
     a.whatsapp-link:hover { text-decoration:underline; }
@@ -166,7 +167,9 @@
         body: dados,
         startY: 50,
         styles: { fontSize: 8, cellPadding: 3 },
-        headStyles: { fillColor: [76, 175, 80], textColor: 255, halign: "left" }
+        headStyles: { fillColor: [76, 175, 80], textColor: 255, halign: "left" },
+        alternateRowStyles: { fillColor: [226, 240, 217] }, // Verde claro (#E2F0D9)
+        bodyStyles: { fillColor: [255, 255, 255] }          // Branco
       });
 
       doc.save("lista_inscritos.pdf");

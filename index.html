@@ -1,226 +1,122 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lista de Inscritos</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 20px;
-      background-color: #f4f4f4;
+      background: #f8f9fa;
     }
+
     h1 {
       text-align: center;
-      color: #333;
+      margin-bottom: 20px;
     }
-    .counter {
-      text-align: center;
-      font-size: 1.3rem;
-      margin-top: 10px;
-      margin-bottom: 15px;
-      padding: 10px;
-      background: linear-gradient(135deg, #4CAF50, #45a049);
-      color: white;
-      border-radius: 8px;
-      display: inline-block;
-      min-width: 200px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-    input[type="text"] {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-    .table-wrapper {
+
+    .table-container {
       overflow-x: auto;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      background: white;
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
+      min-width: 900px;
     }
+
+    thead {
+      background: #4CAF50;
+      color: white;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
     th, td {
       padding: 10px;
       text-align: left;
-      border: 1px solid #ddd;
-      word-break: break-word;
+      border-bottom: 1px solid #ddd;
+      font-size: 14px;
     }
-    th {
-      background-color: #4CAF50;
-      color: white;
-    }
-    tr:nth-child(even) {
+
+    tbody tr:nth-child(even) {
       background-color: #f2f2f2;
     }
-    .small { font-size: 0.9rem; color: #555; }
-    a.whatsapp-link {
-      color: #1a73e8;
-      text-decoration: none;
+
+    tbody tr:hover {
+      background-color: #e6f7ff;
     }
-    a.whatsapp-link:hover {
-      text-decoration: underline;
+
+    @media (max-width: 768px) {
+      th, td {
+        font-size: 12px;
+        padding: 8px;
+      }
     }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
+
   <h1>Lista de Inscritos</h1>
-  <div class="counter" id="counter">Total de inscritos: 0</div>
-  <input type="text" id="search" placeholder="Buscar por nome..." />
-  
-  <div class="table-wrapper">
-    <table id="inscritos">
+
+  <div class="table-container">
+    <table id="tabela-inscritos">
       <thead>
         <tr>
-          <th>Nome Completo</th>
+          <th>Nome completo</th>
           <th>Data de Nascimento</th>
           <th>CPF</th>
+          <th>Opção</th>
+          <th>Tamanho</th>
+          <th>Camiseta</th>
+          <th>Opção extra</th>
           <th>WhatsApp</th>
+          <th>Email</th>
+          <th>Nível Escolaridade</th>
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody id="tabela-body"></tbody>
     </table>
   </div>
-  
-  <div class="small">
-    Observação: o parser agora trata corretamente células com vírgulas; 
-    o WhatsApp é extraído da coluna 10 (J).
-  </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?gid=1297981915&single=true&output=csv";
-    const searchInput = document.getElementById("search");
-    const counter = document.getElementById("counter");
-    const tbody = document.querySelector("#inscritos tbody");
-    let cachedData = [];
 
-    function formatPhone(num) {
-      if (!num) return "";
-      num = num.replace(/^0+/, "");
-      const only = num.replace(/\D/g, '');
-      if (only.length === 11) {
-        return '(' + only.slice(0,2) + ') ' + only.slice(2,7) + '-' + only.slice(7);
-      } else if (only.length === 10) {
-        return '(' + only.slice(0,2) + ') ' + only.slice(2,6) + '-' + only.slice(6);
-      } else {
-        return num;
+    Papa.parse(CSV_URL, {
+      download: true,
+      header: true,
+      complete: function(results) {
+        const data = results.data;
+        const tbody = document.getElementById("tabela-body");
+
+        data.forEach(row => {
+          if (!row["NOME COMPLETO"]) return;
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row["NOME COMPLETO"] || ""}</td>
+            <td>${row["Data de Nascimento do Inscrito"] || ""}</td>
+            <td>${row["SEU CPF APENAS NÚMEROS"] || ""}</td>
+            <td>${row["ESCOLHA UMA OPÇÃO"] || ""}</td>
+            <td>${row["ESCOLHA UM TAMANHO"] || ""}</td>
+            <td>${row["CAMISETAS ADULTAS"] || ""}</td>
+            <td>${row["ESCOLHA UMA OPÇÃO.1"] || ""}</td>
+            <td>${row["Número do telefone WhatsApp"] || ""}</td>
+            <td>${row["Seu e-mail aqui"] || ""}</td>
+            <td>${row["NIVEL DE ESCOLARIDADE"] || ""}</td>
+          `;
+          tbody.appendChild(tr);
+        });
       }
-    }
-
-    function formatDate(dateStr) {
-      if (!dateStr) return "";
-      const parts = dateStr.split(/[-/]/);
-      if (parts.length === 3) {
-        if (parts[0].length === 4) {
-          // AAAA-MM-DD -> DD/MM/AAAA
-          return `${parts[2]}/${parts[1]}/${parts[0]}`;
-        }
-        return `${parts[0].padStart(2, "0")}/${parts[1].padStart(2, "0")}/${parts[2]}`;
-      }
-      return dateStr;
-    }
-
-    async function fetchData() {
-      const response = await fetch(CSV_URL);
-      if (!response.ok) throw new Error('Erro ao buscar CSV: ' + response.status);
-      const text = await response.text();
-      const parsed = Papa.parse(text, { skipEmptyLines: true }).data;
-
-      // Ignora linha de cabeçalho
-      let startIndex = 0;
-      for (let i = 0; i < parsed.length; i++) {
-        const r = parsed[i];
-        if (r && r[1]) {
-          const nomeTest = r[1].toString().trim().toLowerCase();
-          if (
-            nomeTest !== "nome completo" &&
-            nomeTest.split(/\s+/).length >= 2
-          ) {
-            startIndex = i;
-            break;
-          }
-        }
-      }
-
-      const rows = parsed.slice(startIndex);
-
-      let data = rows.map(row => {
-        const nome = row[1] ? row[1].toString().trim() : "";
-        const nascimento = row[2] ? row[2].toString().trim() : "";
-        const cpf = row[3] ? row[3].toString().trim() : "";
-        let whatsappRaw = row[9] ? row[9].toString() : "";
-        let whatsappDigits = whatsappRaw.replace(/\D/g, '');
-        if (!whatsappDigits) {
-          for (let k = 10; k < row.length; k++) {
-            const alt = (row[k] || '').toString().replace(/\D/g, '');
-            if (alt) { whatsappDigits = alt; break; }
-          }
-        }
-        return { nome, nascimento, cpf, whatsapp: whatsappDigits };
-      });
-
-      return data.filter(item => {
-        if (!item.nome) return false;
-        const wc = item.nome.trim().split(/\s+/).filter(Boolean).length;
-        return wc >= 2 && item.nome.toLowerCase() !== "nome completo";
-      });
-    }
-
-    function renderTable(data) {
-      tbody.innerHTML = "";
-      data.forEach(item => {
-        const tr = document.createElement("tr");
-
-        const tdNome = document.createElement("td");
-        tdNome.textContent = item.nome;
-
-        const tdData = document.createElement("td");
-        tdData.textContent = formatDate(item.nascimento);
-
-        const tdCpf = document.createElement("td");
-        tdCpf.textContent = item.cpf;
-
-        const tdWhatsapp = document.createElement("td");
-        if (item.whatsapp) {
-          const link = document.createElement("a");
-          link.href = `https://wa.me/55${item.whatsapp}`;
-          link.textContent = formatPhone(item.whatsapp);
-          link.target = "_blank";
-          link.classList.add("whatsapp-link");
-          tdWhatsapp.appendChild(link);
-        }
-
-        tr.appendChild(tdNome);
-        tr.appendChild(tdData);
-        tr.appendChild(tdCpf);
-        tr.appendChild(tdWhatsapp);
-        tbody.appendChild(tr);
-      });
-
-      counter.textContent = `Total de inscritos: ${data.length}`;
-    }
-
-    async function init() {
-      cachedData = await fetchData();
-      renderTable(cachedData);
-    }
-
-    searchInput.addEventListener("input", (event) => {
-      const searchTerm = event.target.value.toLowerCase();
-      const filtered = cachedData.filter(item =>
-        item.nome.toLowerCase().includes(searchTerm)
-      );
-      renderTable(filtered);
-    });
-
-    init().catch(err => {
-      console.error(err);
-      alert('Erro ao carregar dados: ' + err.message);
     });
   </script>
+
 </body>
 </html>

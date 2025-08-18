@@ -30,9 +30,6 @@
       table, tbody, tr, td { display:block; width:100%; }
       td { border:none; padding:8px 5px; border-bottom:1px solid #ddd; }
     }
-
-    /* Classe usada para esconder linhas no PDF */
-    .oculto-pdf { display:none !important; }
   </style>
 </head>
 <body>
@@ -55,8 +52,9 @@
 
   <!-- PapaParse -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <!-- html2pdf.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- jsPDF + AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?gid=1297981915&single=true&output=csv";
@@ -73,7 +71,6 @@
       if (!rows || rows.length === 0) return;
 
       const headers = rows[0];
-      // remove linhas vazias ou sem nome
       const data = rows.slice(1).filter(linha => (linha[1] || "").toString().trim() !== "");
 
       montarCabecalho(headers);
@@ -144,30 +141,35 @@
       document.getElementById("contador").textContent = "Total de inscritos: " + cont;
     });
 
-    // Botão PDF (usa tabela renderizada)
+    // Botão PDF usando jsPDF + autotable
     document.getElementById("btnPDF").addEventListener("click", () => {
-      const tabelaContainer = document.getElementById("tabela-container");
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'pt', 'a4');
 
-      // Marca linhas escondidas
-      const linhas = tabelaContainer.querySelectorAll("tr");
-      linhas.forEach(tr => {
-        if (tr.style.display === "none") tr.classList.add("oculto-pdf");
+      // pega cabeçalho
+      const cabecalho = Array.from(document.querySelectorAll("#cabecalho th")).map(th => th.textContent);
+
+      // pega dados visíveis
+      const dados = [];
+      document.querySelectorAll("#corpo tr").forEach(tr => {
+        if (tr.style.display !== "none") {
+          const linha = Array.from(tr.cells).map(td => td.textContent);
+          dados.push(linha);
+        }
       });
 
-      const opt = {
-        margin:       0.5,
-        filename:     'lista_inscritos.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
-      };
+      doc.setFontSize(14);
+      doc.text("Lista de Inscritos", doc.internal.pageSize.getWidth()/2, 30, { align: "center" });
 
-      html2pdf().set(opt).from(tabelaContainer).save().then(() => {
-        // Restaura linhas escondidas
-        document.querySelectorAll(".oculto-pdf").forEach(tr => {
-          tr.classList.remove("oculto-pdf");
-        });
+      doc.autoTable({
+        head: [cabecalho],
+        body: dados,
+        startY: 50,
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [76, 175, 80], textColor: 255, halign: "left" }
       });
+
+      doc.save("lista_inscritos.pdf");
     });
 
     carregarInscritos();

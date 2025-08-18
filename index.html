@@ -1,102 +1,26 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Lista de Inscritos</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      margin: 0;
-      padding: 0;
-    }
-
-    h1 {
-      text-align: center;
-      margin: 20px 0;
-    }
-
-    .contador {
-      margin: 10px;
-      padding: 10px 20px;
-      background: #4CAF50;
-      color: white;
-      font-weight: bold;
-      border-radius: 8px;
-      display: inline-block;
-    }
-
-    .busca-container {
-      margin: 10px;
-      text-align: left;
-    }
-
-    .busca-container input {
-      padding: 10px;
-      width: 100%;
-      max-width: 400px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-    }
-
-    .tabela-container {
-      overflow-x: auto;
-      margin: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      max-height: 70vh;
-      overflow-y: auto;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 800px;
-    }
-
-    thead th {
-      position: sticky;
-      top: 0;
-      background: #4CAF50;
-      color: white;
-      padding: 10px;
-      text-align: left;
-      border-bottom: 2px solid #ddd;
-    }
-
-    tbody tr:nth-child(even) {
-      background: #f9f9f9;
-    }
-
-    tbody td {
-      padding: 8px;
-      border-bottom: 1px solid #ddd;
-    }
-
-    a.whatsapp-link {
-      color: #25D366;
-      font-weight: bold;
-      text-decoration: none;
-    }
-
-    a.whatsapp-link:hover {
-      text-decoration: underline;
-    }
-
-    @media (max-width: 768px) {
-      .contador {
-        display: block;
-        text-align: center;
-      }
-
-      .busca-container {
-        text-align: center;
-      }
-
-      .busca-container input {
-        max-width: 100%;
-      }
+    body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; }
+    h1 { text-align:center; margin:20px 0; }
+    .contador { margin:10px; padding:10px 20px; background:#4CAF50; color:#fff; font-weight:bold; border-radius:8px; display:inline-block; }
+    .busca-container { margin:10px; text-align:left; }
+    .busca-container input { padding:10px; width:100%; max-width:400px; border:1px solid #ddd; border-radius:5px; }
+    .tabela-container { overflow-x:auto; margin:10px; border:1px solid #ddd; border-radius:5px; max-height:70vh; overflow-y:auto; background:#fff; }
+    table { width:100%; border-collapse:collapse; min-width:900px; }
+    thead th { position:sticky; top:0; background:#4CAF50; color:#fff; padding:10px; text-align:left; border-bottom:2px solid #ddd; }
+    tbody tr:nth-child(even) { background:#f9f9f9; }
+    tbody td { padding:8px; border-bottom:1px solid #eee; vertical-align:top; }
+    a.whatsapp-link { color:#25D366; font-weight:bold; text-decoration:none; }
+    a.whatsapp-link:hover { text-decoration:underline; }
+    @media (max-width:768px){
+      .contador{ display:block; text-align:center; }
+      .busca-container{ text-align:center; }
+      .busca-container input{ max-width:100%; }
     }
   </style>
 </head>
@@ -111,85 +35,113 @@
 
   <div class="tabela-container">
     <table id="tabela">
-      <thead>
-        <tr id="cabecalho"></tr>
-      </thead>
+      <thead><tr id="cabecalho"></tr></thead>
       <tbody id="corpo"></tbody>
     </table>
   </div>
 
+  <!-- PapaParse para tratar CSV corretamente (vírgulas, quebras de linha, aspas, etc.) -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
   <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?gid=1297981915&single=true&output=csv";
 
-    async function carregarInscritos() {
-      const resposta = await fetch(CSV_URL);
-      const texto = await resposta.text();
+    // Colunas desejadas por ÍNDICE (A=0, B=1, ...):
+    // 1: Nome completo
+    // 2: Data de Nascimento
+    // 3: CPF (DEVE APARECER)
+    // 4: Escolha uma opção
+    // 5: Escolha um tamanho
+    // 6: Camisetas adultas
+    // 7: Opção extra
+    // 8: WhatsApp (I)  -> link clicável
+    // 9: E-mail (J)    -> coluna correta
+    // 10: Nível de escolaridade
+    // 11: Status da escolaridade
+    const COLS = [1,2,3,4,5,6,7,8,9,10,11];
 
-      const linhas = texto.split("\n").map(l => l.split(","));
-      const cabecalhos = linhas[0];
-      const dados = linhas.slice(1);
+    async function carregarInscritos(){
+      const resp = await fetch(CSV_URL);
+      const csvText = await resp.text();
 
-      // Colunas específicas: Nome(1), Data Nasc(2), CPF(3), Opção(4), Tamanho(5), Camiseta(6), Opção extra(7), WhatsApp(9), Email(10), Escolaridade(11)
-      const colunasPermitidas = [1, 2, 3, 4, 5, 6, 7, 9, 10, 11];
+      // Parse robusto
+      const parsed = Papa.parse(csvText, { header: false, skipEmptyLines: true, dynamicTyping: false });
+      const rows = parsed.data;
 
-      // Montar cabeçalho
-      const cabecalhoEl = document.getElementById("cabecalho");
-      cabecalhoEl.innerHTML = "";
-      colunasPermitidas.forEach(i => {
-        const th = document.createElement("th");
-        th.textContent = cabecalhos[i] || "";
-        cabecalhoEl.appendChild(th);
-      });
+      if (!rows || rows.length === 0) return;
 
-      const corpoEl = document.getElementById("corpo");
-      corpoEl.innerHTML = "";
+      const headers = rows[0];           // primeira linha são os cabeçalhos originais da planilha
+      const data = rows.slice(1);        // demais linhas: os dados
 
-      dados.forEach(linha => {
-        if (linha.length > 1) {
-          const tr = document.createElement("tr");
-          colunasPermitidas.forEach(i => {
-            const td = document.createElement("td");
-
-            if (i === 9) { // Coluna WhatsApp
-              let numero = (linha[i] || "").replace(/\D/g, ""); // apenas números
-              if (numero) {
-                let link = "https://wa.me/55" + numero;
-                td.innerHTML = `<a href="${link}" target="_blank" class="whatsapp-link">${numero}</a>`;
-              }
-            } else {
-              td.textContent = linha[i] || "";
-            }
-
-            tr.appendChild(td);
-          });
-          corpoEl.appendChild(tr);
-        }
-      });
-
+      montarCabecalho(headers);
+      montarTabela(data, headers);
       atualizarContagem();
     }
 
-    function atualizarContagem() {
+    function montarCabecalho(headers){
+      const headEl = document.getElementById("cabecalho");
+      headEl.innerHTML = "";
+      COLS.forEach(idx => {
+        const th = document.createElement("th");
+        th.textContent = headers[idx] || "";
+        headEl.appendChild(th);
+      });
+    }
+
+    function montarTabela(data, headers){
+      const corpo = document.getElementById("corpo");
+      corpo.innerHTML = "";
+
+      data.forEach(linha => {
+        // Filtra linhas inválidas (ex.: resíduos de cabeçalho/linhas vazias)
+        const nome = (linha[1] || "").toString().trim();
+        if (!nome) return; // exige nome preenchido
+
+        const tr = document.createElement("tr");
+
+        COLS.forEach(idx => {
+          const td = document.createElement("td");
+          const val = (linha[idx] ?? "").toString().trim();
+
+          if (idx === 8) { // WhatsApp (coluna I) -> link wa.me
+            const digits = val.replace(/\D/g, "");
+            if (digits) {
+              const withDDI = digits.startsWith("55") ? digits : "55" + digits;
+              const href = `https://wa.me/${withDDI}`;
+              td.innerHTML = `<a target="_blank" rel="noopener noreferrer" class="whatsapp-link" href="${href}">${digits}</a>`;
+            } else {
+              td.textContent = "";
+            }
+          } else {
+            td.textContent = val;
+          }
+
+          tr.appendChild(td);
+        });
+
+        corpo.appendChild(tr);
+      });
+    }
+
+    function atualizarContagem(){
       const linhas = document.querySelectorAll("#corpo tr");
       document.getElementById("contador").textContent = "Total de inscritos: " + linhas.length;
     }
 
-    document.getElementById("busca").addEventListener("input", function () {
+    // Busca por nome (primeira coluna exibida)
+    document.getElementById("busca").addEventListener("input", function(){
       const filtro = this.value.toLowerCase();
       const linhas = document.querySelectorAll("#corpo tr");
-      let contador = 0;
+      let cont = 0;
 
-      linhas.forEach(linha => {
-        const nome = linha.cells[0]?.textContent.toLowerCase() || "";
-        if (nome.includes(filtro)) {
-          linha.style.display = "";
-          contador++;
-        } else {
-          linha.style.display = "none";
-        }
+      linhas.forEach(tr => {
+        const nome = (tr.cells[0]?.textContent || "").toLowerCase();
+        const show = nome.includes(filtro);
+        tr.style.display = show ? "" : "none";
+        if (show) cont++;
       });
 
-      document.getElementById("contador").textContent = "Total de inscritos: " + contador;
+      document.getElementById("contador").textContent = "Total de inscritos: " + cont;
     });
 
     carregarInscritos();

@@ -11,12 +11,14 @@
     .busca-container { margin:10px; text-align:left; }
     .busca-container input { padding:10px; width:100%; max-width:400px; border:1px solid #ddd; border-radius:5px; }
     .tabela-container { overflow-x:auto; margin:10px; border:1px solid #ddd; border-radius:5px; max-height:70vh; overflow-y:auto; background:#fff; }
-    table { width:100%; border-collapse:collapse; min-width:1000px; }
+    table { width:100%; border-collapse:collapse; min-width:900px; }
     thead th { position:sticky; top:0; background:#4CAF50; color:#fff; padding:10px; text-align:left; border-bottom:2px solid #ddd; }
     tbody tr:nth-child(even) { background:#f9f9f9; }
     tbody td { padding:8px; border-bottom:1px solid #eee; vertical-align:top; }
     a.whatsapp-link { color:#25D366; font-weight:bold; text-decoration:none; }
     a.whatsapp-link:hover { text-decoration:underline; }
+    .btn-pdf { margin:10px; padding:10px 20px; background:#2196F3; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; }
+    .btn-pdf:hover { background:#0b7dda; }
     @media (max-width:768px){
       .contador{ display:block; text-align:center; }
       .busca-container{ text-align:center; }
@@ -33,33 +35,25 @@
     <input type="text" id="busca" placeholder="Buscar por nome...">
   </div>
 
-  <div class="tabela-container">
+  <button class="btn-pdf" id="btnPDF">Gerar PDF</button>
+
+  <div class="tabela-container" id="tabela-container">
     <table id="tabela">
       <thead><tr id="cabecalho"></tr></thead>
       <tbody id="corpo"></tbody>
     </table>
   </div>
 
-  <!-- PapaParse para tratar CSV corretamente -->
+  <!-- PapaParse -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <!-- html2pdf.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?gid=1297981915&single=true&output=csv";
 
-    // Colunas desejadas por ÍNDICE (A=0, B=1, ...):
-    // 1: Nome completo
-    // 2: Data de Nascimento
-    // 3: CPF
-    // 4: Escolha uma opção
-    // 5: Escolha um tamanho
-    // 6: Camisetas adultas
-    // 7: Opção extra
-    // 8: WhatsApp (I)
-    // 9: E-mail (J)
-    // 10: Nível de escolaridade
-    // 11: Status da escolaridade
-    // 12: Área de atuação/formação (M)
-    const COLS = [1,2,3,4,5,6,7,8,9,10,11,12];
+    // Índices
+    const COLS = [1,2,3,4,5,6,7,8,9,10,11,12]; // agora inclui a coluna M (índice 12)
 
     async function carregarInscritos(){
       const resp = await fetch(CSV_URL);
@@ -67,11 +61,10 @@
 
       const parsed = Papa.parse(csvText, { header: false, skipEmptyLines: true, dynamicTyping: false });
       const rows = parsed.data;
-
       if (!rows || rows.length === 0) return;
 
-      const headers = rows[0];    
-      const data = rows.slice(1); 
+      const headers = rows[0];
+      const data = rows.slice(1);
 
       montarCabecalho(headers);
       montarTabela(data, headers);
@@ -94,10 +87,9 @@
 
       data.forEach(linha => {
         const nome = (linha[1] || "").toString().trim();
-        if (!nome) return; 
+        if (!nome) return;
 
         const tr = document.createElement("tr");
-
         COLS.forEach(idx => {
           const td = document.createElement("td");
           const val = (linha[idx] ?? "").toString().trim();
@@ -117,7 +109,6 @@
 
           tr.appendChild(td);
         });
-
         corpo.appendChild(tr);
       });
     }
@@ -127,7 +118,7 @@
       document.getElementById("contador").textContent = "Total de inscritos: " + linhas.length;
     }
 
-    // Busca por nome
+    // Busca
     document.getElementById("busca").addEventListener("input", function(){
       const filtro = this.value.toLowerCase();
       const linhas = document.querySelectorAll("#corpo tr");
@@ -141,6 +132,19 @@
       });
 
       document.getElementById("contador").textContent = "Total de inscritos: " + cont;
+    });
+
+    // Botão PDF
+    document.getElementById("btnPDF").addEventListener("click", () => {
+      const elemento = document.getElementById("tabela-container");
+      const opt = {
+        margin:       0.5,
+        filename:     'lista_inscritos.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
+      };
+      html2pdf().set(opt).from(elemento).save();
     });
 
     carregarInscritos();

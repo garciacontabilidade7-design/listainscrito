@@ -14,7 +14,28 @@
 
     h1 {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    #searchInput {
+      padding: 8px;
+      width: 250px;
+      max-width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .contador {
+      font-weight: bold;
     }
 
     .table-container {
@@ -65,6 +86,11 @@
 
   <h1>Lista de Inscritos</h1>
 
+  <div class="top-bar">
+    <input type="text" id="searchInput" placeholder="🔍 Buscar por nome...">
+    <div class="contador">Total de inscritos: <span id="contador">0</span></div>
+  </div>
+
   <div class="table-container">
     <table id="tabela-inscritos">
       <thead>
@@ -89,13 +115,32 @@
   <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?gid=1297981915&single=true&output=csv";
 
+    const tbody = document.getElementById("tabela-body");
+    const contador = document.getElementById("contador");
+    const searchInput = document.getElementById("searchInput");
+
+    let todasLinhas = [];
+
+    function atualizarContador() {
+      const visiveis = [...tbody.querySelectorAll("tr")]
+        .filter(tr => tr.style.display !== "none").length;
+      contador.textContent = visiveis;
+    }
+
+    function aplicarFiltro() {
+      const filtro = searchInput.value.toLowerCase();
+      [...tbody.querySelectorAll("tr")].forEach(tr => {
+        const nome = tr.querySelector("td")?.textContent.toLowerCase() || "";
+        tr.style.display = nome.includes(filtro) ? "" : "none";
+      });
+      atualizarContador();
+    }
+
     Papa.parse(CSV_URL, {
       download: true,
       header: true,
       complete: function(results) {
         const data = results.data;
-        const tbody = document.getElementById("tabela-body");
-
         data.forEach(row => {
           if (!row["NOME COMPLETO"]) return;
 
@@ -114,8 +159,13 @@
           `;
           tbody.appendChild(tr);
         });
+
+        todasLinhas = [...tbody.querySelectorAll("tr")];
+        atualizarContador();
       }
     });
+
+    searchInput.addEventListener("input", aplicarFiltro);
   </script>
 
 </body>

@@ -1,153 +1,97 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Lista de Inscritos</title>
+  <meta charset="UTF-8">
+  <title>Inscrições</title>
   <style>
-    body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; }
-    h1 { text-align:center; margin:20px 0; }
-    .contador { margin:10px; padding:10px 20px; background:#4CAF50; color:#fff; font-weight:bold; border-radius:8px; display:inline-block; }
-    .busca-container { margin:10px; text-align:left; }
-    .busca-container input { padding:10px; width:100%; max-width:400px; border:1px solid #ddd; border-radius:5px; }
-    .tabela-container { overflow-x:auto; margin:10px; border:1px solid #ddd; border-radius:5px; max-height:70vh; overflow-y:auto; background:#fff; }
-    table { width:100%; border-collapse:collapse; min-width:900px; }
-    thead th { position:sticky; top:0; background:#4CAF50; color:#fff; padding:10px; text-align:left; border-bottom:2px solid #ddd; }
-    tbody tr:nth-child(even) { background:#f9f9f9; }
-    tbody td { padding:8px; border-bottom:1px solid #eee; vertical-align:top; }
-    a.whatsapp-link { color:#25D366; font-weight:bold; text-decoration:none; }
-    a.whatsapp-link:hover { text-decoration:underline; }
-    .btn-pdf { margin:10px; padding:10px 20px; background:#2196F3; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; }
-    .btn-pdf:hover { background:#0b7dda; }
-    @media (max-width:768px){
-      .contador{ display:block; text-align:center; }
-      .busca-container{ text-align:center; }
-      .busca-container input{ max-width:100%; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .btn-pdf {
+      margin: 20px 0;
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      border-radius: 5px;
+    }
+    .btn-pdf:hover {
+      background-color: #45a049;
     }
   </style>
 </head>
 <body>
-  <h1>Lista de Inscritos</h1>
 
-  <div class="contador" id="contador">Total de inscritos: 0</div>
+  <button class="btn-pdf" onclick="generatePDF()">Gerar PDF</button>
 
-  <div class="busca-container">
-    <input type="text" id="busca" placeholder="Buscar por nome...">
-  </div>
+  <table id="inscricoes">
+    <thead>
+      <tr>
+        <th>NOME COMPLETO</th>
+        <th>DATA DE NASCIMENTO</th>
+        <th>CPF</th>
+        <th>SEU E-MAIL AQUI</th>
+        <th>ESCOLHA UMA OPÇÃO</th>
+        <th>ESCOLHA UM TAMANHO</th>
+        <th>CAMISETAS ADULTAS</th>
+        <th>ESCOLHA UMA OPÇÃO</th>
+        <th>NÍVEL DE ESCOLARIDADE</th>
+        <th>STATUS DA ESCOLARIDADE</th>
+        <th>ÁREA DE ATUAÇÃO/FORMAÇÃO</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php
+        // Conexão com Google Sheets
+        $spreadsheetId = "SUA_PLANILHA_ID";
+        $range = "Página1!A2:M"; // até coluna M
+        $response = $service->spreadsheets_values->get($spreadsheetId, $range);
+        $values = $response->getValues();
 
-  <button class="btn-pdf" id="btnPDF">Gerar PDF</button>
-
-  <div class="tabela-container" id="tabela-container">
-    <table id="tabela">
-      <thead><tr id="cabecalho"></tr></thead>
-      <tbody id="corpo"></tbody>
-    </table>
-  </div>
-
-  <!-- PapaParse -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <!-- html2pdf.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-  <script>
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?gid=1297981915&single=true&output=csv";
-
-    // Índices
-    const COLS = [1,2,3,4,5,6,7,8,9,10,11,12]; // agora inclui a coluna M (índice 12)
-
-    async function carregarInscritos(){
-      const resp = await fetch(CSV_URL);
-      const csvText = await resp.text();
-
-      const parsed = Papa.parse(csvText, { header: false, skipEmptyLines: true, dynamicTyping: false });
-      const rows = parsed.data;
-      if (!rows || rows.length === 0) return;
-
-      const headers = rows[0];
-      const data = rows.slice(1);
-
-      montarCabecalho(headers);
-      montarTabela(data, headers);
-      atualizarContagem();
-    }
-
-    function montarCabecalho(headers){
-      const headEl = document.getElementById("cabecalho");
-      headEl.innerHTML = "";
-      COLS.forEach(idx => {
-        const th = document.createElement("th");
-        th.textContent = headers[idx] || "";
-        headEl.appendChild(th);
-      });
-    }
-
-    function montarTabela(data, headers){
-      const corpo = document.getElementById("corpo");
-      corpo.innerHTML = "";
-
-      data.forEach(linha => {
-        const nome = (linha[1] || "").toString().trim();
-        if (!nome) return;
-
-        const tr = document.createElement("tr");
-        COLS.forEach(idx => {
-          const td = document.createElement("td");
-          const val = (linha[idx] ?? "").toString().trim();
-
-          if (idx === 8) { // WhatsApp
-            const digits = val.replace(/\D/g, "");
-            if (digits) {
-              const withDDI = digits.startsWith("55") ? digits : "55" + digits;
-              const href = `https://wa.me/${withDDI}`;
-              td.innerHTML = `<a target="_blank" rel="noopener noreferrer" class="whatsapp-link" href="${href}">${digits}</a>`;
-            } else {
-              td.textContent = "";
-            }
-          } else {
-            td.textContent = val;
+        if (!empty($values)) {
+          foreach ($values as $row) {
+            echo "<tr>";
+            echo "<td>" . ($row[1] ?? '') . "</td>"; // Nome completo
+            echo "<td>" . ($row[2] ?? '') . "</td>"; // Data nascimento
+            echo "<td>" . ($row[8] ?? '') . "</td>"; // CPF
+            echo "<td>" . ($row[9] ?? '') . "</td>"; // E-mail
+            echo "<td>" . ($row[3] ?? '') . "</td>"; // Escolha opção
+            echo "<td>" . ($row[4] ?? '') . "</td>"; // Tamanho
+            echo "<td>" . ($row[5] ?? '') . "</td>"; // Camisetas
+            echo "<td>" . ($row[6] ?? '') . "</td>"; // Outra opção
+            echo "<td>" . ($row[7] ?? '') . "</td>"; // Nível escolaridade
+            echo "<td>" . ($row[11] ?? '') . "</td>"; // Status escolaridade
+            echo "<td>" . ($row[12] ?? '') . "</td>"; // Área de atuação
+            echo "</tr>";
           }
+        }
+      ?>
+    </tbody>
+  </table>
 
-          tr.appendChild(td);
-        });
-        corpo.appendChild(tr);
-      });
+  <!-- Gerar PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script>
+    function generatePDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l', 'pt', 'a4'); // paisagem
+      doc.autoTable({ html: '#inscricoes' });
+      doc.save('inscricoes.pdf');
     }
-
-    function atualizarContagem(){
-      const linhas = document.querySelectorAll("#corpo tr");
-      document.getElementById("contador").textContent = "Total de inscritos: " + linhas.length;
-    }
-
-    // Busca
-    document.getElementById("busca").addEventListener("input", function(){
-      const filtro = this.value.toLowerCase();
-      const linhas = document.querySelectorAll("#corpo tr");
-      let cont = 0;
-
-      linhas.forEach(tr => {
-        const nome = (tr.cells[0]?.textContent || "").toLowerCase();
-        const show = nome.includes(filtro);
-        tr.style.display = show ? "" : "none";
-        if (show) cont++;
-      });
-
-      document.getElementById("contador").textContent = "Total de inscritos: " + cont;
-    });
-
-    // Botão PDF
-    document.getElementById("btnPDF").addEventListener("click", () => {
-      const elemento = document.getElementById("tabela-container");
-      const opt = {
-        margin:       0.5,
-        filename:     'lista_inscritos.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
-      };
-      html2pdf().set(opt).from(elemento).save();
-    });
-
-    carregarInscritos();
   </script>
+
 </body>
 </html>

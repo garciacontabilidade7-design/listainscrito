@@ -30,6 +30,9 @@
       table, tbody, tr, td { display:block; width:100%; }
       td { border:none; padding:8px 5px; border-bottom:1px solid #ddd; }
     }
+
+    /* Classe usada para esconder linhas no PDF */
+    .oculto-pdf { display:none !important; }
   </style>
 </head>
 <body>
@@ -141,20 +144,30 @@
       document.getElementById("contador").textContent = "Total de inscritos: " + cont;
     });
 
-    // Botão PDF (somente linhas visíveis)
+    // Botão PDF (usa tabela renderizada)
     document.getElementById("btnPDF").addEventListener("click", () => {
-      const clone = document.getElementById("tabela-container").cloneNode(true);
-      clone.querySelectorAll("tr").forEach(tr => {
-        if (tr.style.display === "none") tr.remove();
+      const tabelaContainer = document.getElementById("tabela-container");
+
+      // Marca linhas escondidas
+      const linhas = tabelaContainer.querySelectorAll("tr");
+      linhas.forEach(tr => {
+        if (tr.style.display === "none") tr.classList.add("oculto-pdf");
       });
+
       const opt = {
         margin:       0.5,
         filename:     'lista_inscritos.pdf',
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
+        html2canvas:  { scale: 2, useCORS: true },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
       };
-      html2pdf().set(opt).from(clone).save();
+
+      html2pdf().set(opt).from(tabelaContainer).save().then(() => {
+        // Restaura linhas escondidas
+        document.querySelectorAll(".oculto-pdf").forEach(tr => {
+          tr.classList.remove("oculto-pdf");
+        });
+      });
     });
 
     carregarInscritos();

@@ -13,19 +13,18 @@
     .tabela-container { overflow-x:auto; margin:10px; border:1px solid #ddd; border-radius:5px; max-height:70vh; overflow-y:auto; background:#fff; }
     table { width:100%; border-collapse:collapse; min-width:900px; font-size:14px; }
     thead th { position:sticky; top:0; background:#4CAF50; color:#fff; padding:10px; text-align:left; }
-    tbody tr:nth-child(even) { background:#E2F0D9; } /* Verde claro */
-    tbody tr:nth-child(odd) { background:#FFFFFF; }  /* Branco */
-    tbody td { padding:8px; vertical-align:top; border:none; } /* sem linhas */
+    tbody tr:nth-child(even) { background:#E2F0D9; }
+    tbody tr:nth-child(odd) { background:#FFFFFF; }
+    tbody td { padding:8px; vertical-align:top; border:none; }
     a.whatsapp-link { color:#25D366; font-weight:bold; text-decoration:none; }
     a.whatsapp-link:hover { text-decoration:underline; }
     .btn-pdf { margin:10px; padding:10px 20px; background:#2196F3; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; }
     .btn-pdf:hover { background:#0b7dda; }
+    .erro { color:#c62828; text-align:center; margin:6px 0 0; font-size:13px; }
 
     @media(max-width:768px){
       .busca-container input{ max-width:100%; }
     }
-
-    /* Mobile simplificado */
     @media(max-width:500px){
       thead { display:none; }
       table, tbody, tr, td { display:block; width:100%; }
@@ -37,6 +36,7 @@
   <h1>Lista de Inscritos</h1>
 
   <div class="contador" id="contador">Total de inscritos: 0</div>
+  <div id="msgErro" class="erro"></div>
 
   <div class="busca-container">
     <input type="text" id="busca" placeholder="Buscar por nome...">
@@ -58,27 +58,98 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <script>
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?gid=1297981915&single=true&output=csv";
+    const CSV_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?gid=1297981915&single=true&output=csv";
+    // Fallback robusto (GViz JSON)
+    const GVIZ_URL = CSV_URL
+      .replace("/pub?", "/gviz/tq?")
+      .replace("output=csv", "tqx=out:json");
 
-    // Índices (ajustar se necessário)
+    // Colunas desejadas por índice A..M => 0..12
+    // 1: Nome, 2: Nasc., 3: CPF, 4: Opção, 5: Tamanho, 6: Camiseta, 7: Opção extra,
+    // 8: WhatsApp (I), 9: E-mail (J), 10: Nível Esc., 11: Status Esc., 12: Área (M)
     const COLS = [1,2,3,4,5,6,7,8,9,10,11,12];
 
+    const msgErroEl = document.getElementById("msgErro");
+
+    // ===== Loader principal com fallback =====
     async function carregarInscritos(){
-      const resp = await fetch(CSV_URL);
-      const csvText = await resp.text();
-
-      const parsed = Papa.parse(csvText, { header: false, skipEmptyLines: true, dynamicTyping: false });
-      const rows = parsed.data;
-      if (!rows || rows.length === 0) return;
-
-      const headers = rows[0];
-      const data = rows.slice(1).filter(linha => (linha[1] || "").toString().trim() !== "");
-
-      montarCabecalho(headers);
-      montarTabela(data, headers);
-      atualizarContagem();
+      msgErroEl.textContent = "";
+      try {
+        const ok = await tentarCarregarDeCSV();
+        if (!ok) {
+          await tentarCarregarDeGViz();
+        }
+        atualizarContagem();
+      } catch (e) {
+        console.error(e);
+        msgErroEl.textContent = "Não foi possível carregar a lista agora. Tente recarregar a página.";
+      }
     }
 
+    // Tenta via CSV publicado
+    async function tentarCarregarDeCSV(){
+      try {
+        const resp = await fetch(CSV_URL, { cache: "no-store", headers: { "Accept": "text/csv,text/plain,*/*" } });
+        const contentType = (resp.headers.get("content-type") || "").toLowerCase();
+        const text = await resp.text();
+
+        // Se vier HTML/JS/CSS (ex.: drive), aborta
+        if (!contentType.includes("text/csv") || pareceHTML(text)) return false;
+
+        const parsed = Papa.parse(text, { header: false, skipEmptyLines: true, dynamicTyping: false });
+        const rows = parsed.data;
+        if (!rows || rows.length < 2) return false;
+
+        const headers = rows[0];
+        const data = rows.slice(1).filter(l => (l[1] || "").toString().trim() !== "");
+        montarCabecalho(headers);
+        montarTabela(data);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // Fallback via GViz (JSON), muito mais estável
+    async function tentarCarregarDeGViz(){
+      const resp = await fetch(GVIZ_URL, { cache: "no-store" });
+      const raw = await resp.text();
+
+      const json = extrairGVizJSON(raw);
+      if (!json || !json.table) throw new Error("GViz inválido");
+
+      const cols = json.table.cols || [];
+      const rows = json.table.rows || [];
+
+      const headers = cols.map(c => (c.label || c.id || "").toString());
+      const data = rows.map(r => {
+        const arr = new Array(cols.length).fill("");
+        (r.c || []).forEach((cell, i) => {
+          if (!cell) return;
+          // usa valor formatado quando existir para preservar zeros (CPF/telefone)
+          arr[i] = (cell.f != null ? cell.f : cell.v != null ? cell.v : "").toString();
+        });
+        return arr;
+      }).filter(l => (l[1] || "").toString().trim() !== "");
+
+      montarCabecalho(headers);
+      montarTabela(data);
+    }
+
+    function extrairGVizJSON(text){
+      // Remove o wrapper: google.visualization.Query.setResponse(...)
+      const inicio = text.indexOf("{");
+      const fim = text.lastIndexOf("}");
+      if (inicio === -1 || fim === -1) return null;
+      try { return JSON.parse(text.slice(inicio, fim + 1)); } catch { return null; }
+    }
+
+    function pareceHTML(s){
+      const t = s.trim().slice(0, 200).toLowerCase();
+      return t.startsWith("<!doctype") || t.startsWith("<html") || t.includes("<head") || t.includes("<body");
+    }
+
+    // ===== Renderização =====
     function montarCabecalho(headers){
       const headEl = document.getElementById("cabecalho");
       headEl.innerHTML = "";
@@ -89,7 +160,7 @@
       });
     }
 
-    function montarTabela(data, headers){
+    function montarTabela(data){
       const corpo = document.getElementById("corpo");
       corpo.innerHTML = "";
 
@@ -102,7 +173,7 @@
           const td = document.createElement("td");
           const val = (linha[idx] ?? "").toString().trim();
 
-          if (idx === 8) { // WhatsApp
+          if (idx === 8) { // WhatsApp (coluna I)
             const digits = val.replace(/\D/g, "");
             if (digits) {
               const withDDI = digits.startsWith("55") ? digits : "55" + digits;
@@ -133,7 +204,7 @@
       let cont = 0;
 
       linhas.forEach(tr => {
-        const nome = (tr.cells[COLS.indexOf(1)]?.textContent || "").toLowerCase();
+        const nome = (tr.cells[0]?.textContent || "").toLowerCase();
         const show = nome.includes(filtro);
         tr.style.display = show ? "" : "none";
         if (show) cont++;
@@ -142,7 +213,7 @@
       document.getElementById("contador").textContent = "Total de inscritos: " + cont;
     });
 
-    // Botão PDF usando jsPDF + autotable (sem linhas)
+    // Botão PDF (usa o que está visível na tela)
     document.getElementById("btnPDF").addEventListener("click", () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'pt', 'a4');
@@ -151,8 +222,7 @@
       const dados = [];
       document.querySelectorAll("#corpo tr").forEach(tr => {
         if (tr.style.display !== "none") {
-          const linha = Array.from(tr.cells).map(td => td.textContent);
-          dados.push(linha);
+          dados.push(Array.from(tr.cells).map(td => td.textContent));
         }
       });
 
@@ -163,9 +233,9 @@
         head: [cabecalho],
         body: dados,
         startY: 50,
-        styles: { fontSize: 8, cellPadding: 3, lineWidth: 0 }, // sem borda
+        styles: { fontSize: 8, cellPadding: 3, lineWidth: 0 },
         headStyles: { fillColor: [76, 175, 80], textColor: 255, halign: "left", lineWidth: 0 },
-        alternateRowStyles: { fillColor: [226, 240, 217] }, // Verde claro
+        alternateRowStyles: { fillColor: [226, 240, 217] },
         bodyStyles: { fillColor: [255, 255, 255], lineWidth: 0 }
       });
 

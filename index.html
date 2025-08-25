@@ -13,15 +13,16 @@
     .tabela-container { overflow-x:auto; margin:10px; border:1px solid #ddd; border-radius:5px; max-height:70vh; overflow-y:auto; background:#fff; }
     table { width:100%; border-collapse:collapse; min-width:900px; font-size:14px; }
     thead th { position:sticky; top:0; background:#4CAF50; color:#fff; padding:10px; text-align:left; }
-    tbody tr:nth-child(even) { background:#E2F0D9; }
-    tbody tr:nth-child(odd) { background:#FFFFFF; }
+    tbody tr:nth-child(even) { background:#E2F0D9; } /* Verde claro */
+    tbody tr:nth-child(odd) { background:#FFFFFF; }  /* Branco */
     tbody td { padding:8px; vertical-align:top; border:none; }
     a.whatsapp-link { color:#25D366; font-weight:bold; text-decoration:none; }
     a.whatsapp-link:hover { text-decoration:underline; }
     .btn-pdf { margin:10px; padding:10px 20px; background:#2196F3; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; }
     .btn-pdf:hover { background:#0b7dda; }
-    .erro { color:#c62828; text-align:center; margin:6px 0 0; font-size:13px; }
-
+    .status { text-align:center; margin:10px 0; font-size:16px; }
+    .status.loading { color:#555; }
+    .status.error { color:#c62828; }
     @media(max-width:768px){
       .busca-container input{ max-width:100%; }
     }
@@ -34,9 +35,7 @@
 </head>
 <body>
   <h1>Lista de Inscritos</h1>
-
-  <div class="contador" id="contador">Total de inscritos: 0</div>
-  <div id="msgErro" class="erro"></div>
+  <div id="status" class="status loading">Carregando lista de inscritos...</div>
 
   <div class="busca-container">
     <input type="text" id="busca" placeholder="Buscar por nome...">
@@ -51,194 +50,108 @@
     </table>
   </div>
 
-  <!-- PapaParse -->
+  <!-- Dependências -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <!-- jsPDF + AutoTable -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <script>
-    const CSV_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?gid=1297981915&single=true&output=csv";
-    // Fallback robusto (GViz JSON)
-    const GVIZ_URL = CSV_URL
-      .replace("/pub?", "/gviz/tq?")
-      .replace("output=csv", "tqx=out:json");
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?gid=1297981915&single=true&output=csv";
+    const COLS = [1,2,3,4,5,6,7,8,9,10,11,12]; // Nome, Data, CPF, Opção, Tamanho, Camiseta, Extra, WhatsApp, Email, Nível, Status, Área
 
-    // Colunas desejadas por índice A..M => 0..12
-    // 1: Nome, 2: Nasc., 3: CPF, 4: Opção, 5: Tamanho, 6: Camiseta, 7: Opção extra,
-    // 8: WhatsApp (I), 9: E-mail (J), 10: Nível Esc., 11: Status Esc., 12: Área (M)
-    const COLS = [1,2,3,4,5,6,7,8,9,10,11,12];
+    const statusEl = document.getElementById("status");
 
-    const msgErroEl = document.getElementById("msgErro");
-
-    // ===== Loader principal com fallback =====
-    async function carregarInscritos(){
-      msgErroEl.textContent = "";
+    async function carregarInscritos(retry = 0) {
       try {
-        const ok = await tentarCarregarDeCSV();
-        if (!ok) {
-          await tentarCarregarDeGViz();
-        }
-        atualizarContagem();
-      } catch (e) {
-        console.error(e);
-        msgErroEl.textContent = "Não foi possível carregar a lista agora. Tente recarregar a página.";
-      }
-    }
+        const res = await fetch(CSV_URL, { cache: "no-store" });
+        if (!res.ok) throw new Error("Erro na resposta");
 
-    // Tenta via CSV publicado
-    async function tentarCarregarDeCSV(){
-      try {
-        const resp = await fetch(CSV_URL, { cache: "no-store", headers: { "Accept": "text/csv,text/plain,*/*" } });
-        const contentType = (resp.headers.get("content-type") || "").toLowerCase();
-        const text = await resp.text();
+        const text = await res.text();
+        if (!text || text.includes("<html")) throw new Error("Conteúdo inválido");
 
-        // Se vier HTML/JS/CSS (ex.: drive), aborta
-        if (!contentType.includes("text/csv") || pareceHTML(text)) return false;
-
-        const parsed = Papa.parse(text, { header: false, skipEmptyLines: true, dynamicTyping: false });
+        const parsed = Papa.parse(text, { header: false, skipEmptyLines: true });
         const rows = parsed.data;
-        if (!rows || rows.length < 2) return false;
+        if (!rows || rows.length < 2) throw new Error("CSV vazio");
 
-        const headers = rows[0];
-        const data = rows.slice(1).filter(l => (l[1] || "").toString().trim() !== "");
-        montarCabecalho(headers);
-        montarTabela(data);
-        return true;
-      } catch (e) {
-        return false;
+        montarTabela(rows);
+        statusEl.textContent = “Total de inscritos: " + (rows.length - 1);
+        statusEl.className = "status contador";
+      } catch (err) {
+        console.error("Falha ao carregar (tentativa", retry+1, "):", err);
+        if (retry < 2) {
+          setTimeout(() => carregarInscritos(retry + 1), 1500);
+        } else {
+          statusEl.textContent = "Não foi possível carregar a lista. Recarregue a página.";
+          statusEl.className = "status error";
+        }
       }
     }
 
-    // Fallback via GViz (JSON), muito mais estável
-    async function tentarCarregarDeGViz(){
-      const resp = await fetch(GVIZ_URL, { cache: "no-store" });
-      const raw = await resp.text();
-
-      const json = extrairGVizJSON(raw);
-      if (!json || !json.table) throw new Error("GViz inválido");
-
-      const cols = json.table.cols || [];
-      const rows = json.table.rows || [];
-
-      const headers = cols.map(c => (c.label || c.id || "").toString());
-      const data = rows.map(r => {
-        const arr = new Array(cols.length).fill("");
-        (r.c || []).forEach((cell, i) => {
-          if (!cell) return;
-          // usa valor formatado quando existir para preservar zeros (CPF/telefone)
-          arr[i] = (cell.f != null ? cell.f : cell.v != null ? cell.v : "").toString();
-        });
-        return arr;
-      }).filter(l => (l[1] || "").toString().trim() !== "");
-
-      montarCabecalho(headers);
-      montarTabela(data);
-    }
-
-    function extrairGVizJSON(text){
-      // Remove o wrapper: google.visualization.Query.setResponse(...)
-      const inicio = text.indexOf("{");
-      const fim = text.lastIndexOf("}");
-      if (inicio === -1 || fim === -1) return null;
-      try { return JSON.parse(text.slice(inicio, fim + 1)); } catch { return null; }
-    }
-
-    function pareceHTML(s){
-      const t = s.trim().slice(0, 200).toLowerCase();
-      return t.startsWith("<!doctype") || t.startsWith("<html") || t.includes("<head") || t.includes("<body");
-    }
-
-    // ===== Renderização =====
-    function montarCabecalho(headers){
-      const headEl = document.getElementById("cabecalho");
-      headEl.innerHTML = "";
-      COLS.forEach(idx => {
+    function montarTabela(rows) {
+      const headers = rows[0], body = rows.slice(1);
+      const cabecalho = document.getElementById("cabecalho");
+      cabecalho.innerHTML = "";
+      COLS.forEach(i => {
         const th = document.createElement("th");
-        th.textContent = headers[idx] || "";
-        headEl.appendChild(th);
+        th.textContent = headers[i] || "";
+        cabecalho.appendChild(th);
       });
-    }
 
-    function montarTabela(data){
       const corpo = document.getElementById("corpo");
       corpo.innerHTML = "";
-
-      data.forEach(linha => {
-        const nome = (linha[1] || "").toString().trim();
-        if (!nome) return;
-
+      body.forEach(row => {
+        if (!row[1] || !row[1].trim()) return;
         const tr = document.createElement("tr");
-        COLS.forEach(idx => {
+        COLS.forEach(i => {
           const td = document.createElement("td");
-          const val = (linha[idx] ?? "").toString().trim();
-
-          if (idx === 8) { // WhatsApp (coluna I)
-            const digits = val.replace(/\D/g, "");
-            if (digits) {
-              const withDDI = digits.startsWith("55") ? digits : "55" + digits;
-              const href = `https://wa.me/${withDDI}`;
-              td.innerHTML = `<a target="_blank" rel="noopener noreferrer" class="whatsapp-link" href="${href}">${digits}</a>`;
-            } else {
-              td.textContent = "";
+          let v = (row[i] || "").trim();
+          if (i === 8) {
+            const d = v.replace(/\D/g,"");
+            if (d) {
+              const href = `https://wa.me/${d.startsWith("55")?d:"55"+d}`;
+              td.innerHTML = `<a href="${href}" target="_blank" class="whatsapp-link">${d}</a>`;
             }
-          } else {
-            td.textContent = val;
-          }
-
+          } else td.textContent = v;
           tr.appendChild(td);
         });
         corpo.appendChild(tr);
       });
     }
 
-    function atualizarContagem(){
-      const linhas = document.querySelectorAll("#corpo tr:not([style*='display: none'])");
-      document.getElementById("contador").textContent = "Total de inscritos: " + linhas.length;
-    }
-
-    // Busca
     document.getElementById("busca").addEventListener("input", function(){
-      const filtro = this.value.toLowerCase();
-      const linhas = document.querySelectorAll("#corpo tr");
-      let cont = 0;
-
-      linhas.forEach(tr => {
-        const nome = (tr.cells[0]?.textContent || "").toLowerCase();
-        const show = nome.includes(filtro);
+      const termo = this.value.toLowerCase();
+      const rows = document.querySelectorAll("#corpo tr");
+      let count = 0;
+      rows.forEach(tr => {
+        const text = tr.cells[0]?.textContent.toLowerCase() || "";
+        const show = text.includes(termo);
         tr.style.display = show ? "" : "none";
-        if (show) cont++;
+        if (show) count++;
       });
-
-      document.getElementById("contador").textContent = "Total de inscritos: " + cont;
+      statusEl.textContent = "Total de inscritos: " + count;
     });
 
-    // Botão PDF (usa o que está visível na tela)
     document.getElementById("btnPDF").addEventListener("click", () => {
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('landscape', 'pt', 'a4');
-
-      const cabecalho = Array.from(document.querySelectorAll("#cabecalho th")).map(th => th.textContent);
-      const dados = [];
-      document.querySelectorAll("#corpo tr").forEach(tr => {
-        if (tr.style.display !== "none") {
-          dados.push(Array.from(tr.cells).map(td => td.textContent));
-        }
-      });
-
+      const doc = new jsPDF("l", "pt", "a4");
       doc.setFontSize(14);
       doc.text("Lista de Inscritos", doc.internal.pageSize.getWidth()/2, 30, { align: "center" });
-
+      const header = Array.from(document.querySelectorAll("#cabecalho th")).map(th => th.textContent);
+      const data = [];
+      document.querySelectorAll("#corpo tr").forEach(tr => {
+        if (tr.style.display !== "none") {
+          data.push(Array.from(tr.cells).map(td => td.textContent));
+        }
+      });
       doc.autoTable({
-        head: [cabecalho],
-        body: dados,
+        head: [header],
+        body: data,
         startY: 50,
         styles: { fontSize: 8, cellPadding: 3, lineWidth: 0 },
-        headStyles: { fillColor: [76, 175, 80], textColor: 255, halign: "left", lineWidth: 0 },
+        headStyles: { fillColor: [76, 175, 80], textColor: 255 },
         alternateRowStyles: { fillColor: [226, 240, 217] },
-        bodyStyles: { fillColor: [255, 255, 255], lineWidth: 0 }
+        bodyStyles: { fillColor: [255, 255, 255] }
       });
-
       doc.save("lista_inscritos.pdf");
     });
 

@@ -13,9 +13,9 @@
     .tabela-container { overflow-x:auto; margin:10px; border:1px solid #ddd; border-radius:5px; max-height:70vh; overflow-y:auto; background:#fff; }
     table { width:100%; border-collapse:collapse; min-width:900px; font-size:14px; }
     thead th { position:sticky; top:0; background:#4CAF50; color:#fff; padding:10px; text-align:left; }
-    tbody tr:nth-child(even) { background:#E2F0D9; }
-    tbody tr:nth-child(odd) { background:#FFFFFF; }
-    tbody td { padding:8px; vertical-align:top; border:none; }
+    tbody tr:nth-child(even) { background:#E2F0D9; } /* Verde claro */
+    tbody tr:nth-child(odd) { background:#FFFFFF; }  /* Branco */
+    tbody td { padding:8px; vertical-align:top; border:none; } /* sem linhas */
     a.whatsapp-link { color:#25D366; font-weight:bold; text-decoration:none; }
     a.whatsapp-link:hover { text-decoration:underline; }
     .btn-pdf { margin:10px; padding:10px 20px; background:#2196F3; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; }
@@ -24,6 +24,8 @@
     @media(max-width:768px){
       .busca-container input{ max-width:100%; }
     }
+
+    /* Mobile simplificado */
     @media(max-width:500px){
       thead { display:none; }
       table, tbody, tr, td { display:block; width:100%; }
@@ -62,28 +64,8 @@
     const COLS = [1,2,3,4,5,6,7,8,9,10,11,12];
 
     async function carregarInscritos(){
-      // ------------- ALTERAÇÃO MÍNIMA: valida CSV e retry uma vez -------------
-      let csvText = "";
-      try {
-        let resp = await fetch(CSV_URL, { cache: "no-store", credentials: "omit" });
-        csvText = await resp.text();
-
-        // às vezes o Google retorna HTML (erro/intersticial). Detecta e tenta de novo sem cache.
-        if (!csvText || csvText.trim().startsWith("<") || /<html|goog-inline-block|drive-logo/i.test(csvText)) {
-          // retry rápido com "cache buster"
-          resp = await fetch(CSV_URL + "&_=" + Date.now(), { cache: "no-store", credentials: "omit" });
-          csvText = await resp.text();
-
-          if (!csvText || csvText.trim().startsWith("<") || /<html|goog-inline-block|drive-logo/i.test(csvText)) {
-            console.error("Resposta não-CSV recebida da planilha. Abortando para evitar lixo na tabela.");
-            return; // aborta silenciosamente para não sujar a UI
-          }
-        }
-      } catch (e) {
-        console.error("Falha ao buscar CSV:", e);
-        return;
-      }
-      // -----------------------------------------------------------------------
+      const resp = await fetch(CSV_URL);
+      const csvText = await resp.text();
 
       const parsed = Papa.parse(csvText, { header: false, skipEmptyLines: true, dynamicTyping: false });
       const rows = parsed.data;
@@ -181,9 +163,9 @@
         head: [cabecalho],
         body: dados,
         startY: 50,
-        styles: { fontSize: 8, cellPadding: 3, lineWidth: 0 },
+        styles: { fontSize: 8, cellPadding: 3, lineWidth: 0 }, // sem borda
         headStyles: { fillColor: [76, 175, 80], textColor: 255, halign: "left", lineWidth: 0 },
-        alternateRowStyles: { fillColor: [226, 240, 217] },
+        alternateRowStyles: { fillColor: [226, 240, 217] }, // Verde claro
         bodyStyles: { fillColor: [255, 255, 255], lineWidth: 0 }
       });
 

@@ -14,90 +14,90 @@
     .container {
       width: 95%;
       margin: auto;
-      overflow-x: auto;
+      background: #fff;
+      padding: 20px;
+      box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      margin-top: 20px;
     }
-    h2 {
+    h1 {
       text-align: center;
-      margin: 20px 0;
+      margin-bottom: 20px;
     }
-    .total-inscritos {
+    .total {
+      background: #4CAF50;
+      color: white;
+      padding: 10px;
       text-align: center;
       font-size: 18px;
-      margin-bottom: 10px;
-      font-weight: bold;
-      color: green;
-      background: #e5fbe5;
-      padding: 10px;
       border-radius: 5px;
+      margin-bottom: 20px;
       display: inline-block;
     }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-bottom: 20px;
+    .search-box {
+      margin-bottom: 15px;
+      text-align: center;
     }
-    th, td {
-      border: 1px solid #ddd;
+    .search-box input {
       padding: 8px;
-      text-align: center;
+      width: 300px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
     }
-    th {
-      background-color: #4CAF50;
-      color: white;
-    }
-    tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
-    tr:hover {
-      background-color: #f1f1f1;
-    }
-    .btn-container {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .btn {
+    .btn-pdf {
+      display: block;
+      margin: 10px auto;
       padding: 10px 20px;
-      background-color: #4CAF50;
+      background: #2196F3;
       color: white;
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      font-size: 16px;
     }
-    .btn:hover {
-      background-color: #45a049;
+    .btn-pdf:hover {
+      background: #0b7dda;
     }
-    .search-box {
-      text-align: center;
-      margin-bottom: 20px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
     }
-    .search-box input {
-      width: 50%;
+    table th, table td {
+      border: 1px solid #ddd;
       padding: 10px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
+      text-align: center;
+    }
+    table th {
+      background: #4CAF50;
+      color: white;
+    }
+    table tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    table tr:hover {
+      background: #f1f1f1;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Lista de Inscritos</h2>
-    <div class="total-inscritos">Total de inscritos: 11</div>
+    <h1>Lista de Inscritos</h1>
+    <div class="total">Total de inscritos: 11</div>
+
     <div class="search-box">
-      <input type="text" id="searchInput" placeholder="Buscar por nome...">
+      <input type="text" id="search" placeholder="Buscar por nome...">
     </div>
-    <div class="btn-container">
-      <button class="btn" onclick="generatePDF()">Gerar PDF</button>
-    </div>
-    <table id="inscritosTable">
+
+    <button class="btn-pdf">Gerar PDF</button>
+
+    <table>
       <thead>
         <tr>
           <th>NOME COMPLETO</th>
           <th>Data de Nascimento do Inscrito</th>
           <th>SEU CPF APENAS NUMEROS</th>
           <th>ESCOLHA UMA OPÇÃO</th>
-          <th>CAMISETA INFANTIL</th>
+          <th>CAMISETA INFANTIL</th> <!-- Alterado aqui -->
           <th>CAMISETAS ADULTAS</th>
           <th>Número de telefone WhatsApp</th>
           <th>Seu e-mail aqui</th>
@@ -110,7 +110,7 @@
         <tr>
           <td>Adryene Storch santos Paredes</td>
           <td>08/09/2000</td>
-          <td>04520566169</td>
+          <td>04520556169</td>
           <td>SOU MEMBRO BATIZADO DA IASD</td>
           <td></td>
           <td>P</td>
@@ -127,7 +127,7 @@
           <td>SOU MEMBRO BATIZADO DA IASD</td>
           <td></td>
           <td>G</td>
-          <td>69993833176</td>
+          <td>6993833176</td>
           <td>franciscoarmindo013@gmail.com</td>
           <td>ENSINO MÉDIO</td>
           <td>COMPLETO</td>
@@ -149,22 +149,5 @@
       </tbody>
     </table>
   </div>
-
-  <script>
-    // Filtro de pesquisa
-    document.getElementById('searchInput').addEventListener('keyup', function() {
-      var filter = this.value.toLowerCase();
-      var rows = document.querySelectorAll('#inscritosTable tbody tr');
-      rows.forEach(function(row) {
-        var name = row.cells[0].textContent.toLowerCase();
-        row.style.display = name.includes(filter) ? '' : 'none';
-      });
-    });
-
-    // Função para gerar PDF (a implementar)
-    function generatePDF() {
-      alert("Função de gerar PDF ainda não implementada.");
-    }
-  </script>
 </body>
 </html>

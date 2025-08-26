@@ -75,7 +75,6 @@
 
   <script>
     const SHEET_URL = "https://opensheet.vercel.app/1gMYAi09IOMMGM5neOO2I2tiT9CGlCgt8WU5psa-d8sQ/Respostas ao formulário 1";
-    const API_URL = "https://script.google.com/macros/s/AKfycbxu0NjmqpIli05okjrfam5uGULIINM4cRRDO-Y6EbhDjrG7x1snIRhCWGsI-cmbWZqX/exec"; // coloque aqui a URL do Apps Script
 
     let headers = [];
     let dados = [];
@@ -86,12 +85,12 @@
       if (!json || json.length === 0) return;
 
       const todasColunas = Object.keys(json[0]);
+
+      // Mantém apenas colunas B até M, exceto "ACEITE O TERMO"
       headers = todasColunas.slice(1, 13).filter(h => !h.toLowerCase().includes("aceite"));
 
-      // adiciona coluna de pagamento
-      if (!headers.includes("Pagamento")) headers.push("Pagamento");
-
       dados = json;
+
       montarCabecalho();
       montarTabela(dados);
       atualizarContagem();
@@ -122,22 +121,13 @@
             if (digits) {
               const withDDI = digits.startsWith("55") ? digits : "55" + digits;
               td.innerHTML = `<a target="_blank" rel="noopener noreferrer" class="whatsapp-link" href="https://wa.me/${withDDI}">${digits}</a>`;
+            } else {
+              td.textContent = "";
             }
-          } else if (h === "Pagamento") {
-            const btn = document.createElement("button");
-            btn.textContent = val === "PAGO" ? "✅ Pago" : "💲 Marcar Pago";
-            btn.style.cursor = "pointer";
-            btn.onclick = async () => {
-              await fetch(API_URL, {
-                method: "POST",
-                body: JSON.stringify({ id: linha["Nome"], pago: true })
-              });
-              btn.textContent = "✅ Pago";
-            };
-            td.appendChild(btn);
           } else {
             td.textContent = val;
           }
+
           tr.appendChild(td);
         });
         corpo.appendChild(tr);

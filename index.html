@@ -89,9 +89,6 @@
       // Mantém apenas colunas B até M, exceto "ACEITE O TERMO"
       headers = todasColunas.slice(1, 13).filter(h => !h.toLowerCase().includes("aceite"));
 
-      // Troca o título "ESCOLHA UM TAMANHO" por "CAMISETA INFANTIL"
-      headers = headers.map(h => h === "ESCOLHA UM TAMANHO" ? "CAMISETA INFANTIL" : h);
-
       dados = json;
 
       montarCabecalho();

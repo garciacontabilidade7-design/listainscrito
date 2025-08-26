@@ -74,20 +74,21 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <script>
-    const SHEET_URL = "https://opensheet.vercel.app/1gMYAi09IOMMGM5neOO2I2tiT9CGlCgt8WU5psa-d8sQ/Respostas ao formulário 1";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwwFCdA9wfHzqKusgiNP7-KgyLiZwKUxV20VMC_iVTSywjXmuMx7l8iRWeNKKBpzis/exec";
 
     let headers = [];
     let dados = [];
 
     async function carregarInscritos(){
-      const resp = await fetch(SHEET_URL);
+      const resp = await fetch(SCRIPT_URL);
       const json = await resp.json();
       if (!json || json.length === 0) return;
 
       const todasColunas = Object.keys(json[0]);
 
-      // Mantém apenas colunas B até M, exceto "ACEITE O TERMO"
+      // Colunas da planilha (mantém B até M) + campo extra Pagamento
       headers = todasColunas.slice(1, 13).filter(h => !h.toLowerCase().includes("aceite"));
+      if (!headers.includes("Pagamento")) headers.push("Pagamento");
 
       dados = json;
 
@@ -110,7 +111,7 @@
       const corpo = document.getElementById("corpo");
       corpo.innerHTML = "";
 
-      linhas.forEach(linha => {
+      linhas.forEach((linha, index) => {
         const tr = document.createElement("tr");
         headers.forEach(h => {
           const td = document.createElement("td");
@@ -121,10 +122,16 @@
             if (digits) {
               const withDDI = digits.startsWith("55") ? digits : "55" + digits;
               td.innerHTML = `<a target="_blank" rel="noopener noreferrer" class="whatsapp-link" href="https://wa.me/${withDDI}">${digits}</a>`;
-            } else {
-              td.textContent = "";
             }
-          } else {
+          } 
+          else if (h === "Pagamento") {
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = (val.toLowerCase() === "pago");
+            checkbox.addEventListener("change", () => atualizarPagamento(index, checkbox.checked));
+            td.appendChild(checkbox);
+          } 
+          else {
             td.textContent = val;
           }
 
@@ -132,6 +139,18 @@
         });
         corpo.appendChild(tr);
       });
+    }
+
+    async function atualizarPagamento(index, pago){
+      const inscrito = dados[index];
+      const id = inscrito["Nome"]; // você pode trocar para outro identificador único
+
+      await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ id: id, pagamento: pago ? "Pago" : "Não pago" })
+      });
+
+      dados[index]["Pagamento"] = pago ? "Pago" : "Não pago";
     }
 
     function atualizarContagem(){

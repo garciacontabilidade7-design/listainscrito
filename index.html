@@ -11,87 +11,35 @@
       margin:0; 
       padding:0; 
     }
-    h1 { 
-      text-align:center; 
-      margin:20px 0; 
-    }
+    h1 { text-align:center; margin:20px 0; }
     .contador { 
-      display:block; 
-      margin:20px auto; 
-      text-align:center; 
-      font-size:18px; 
-      padding:10px 20px; 
-      background:#4CAF50; 
-      color:#fff; 
-      font-weight:bold; 
-      border-radius:8px; 
-      width:fit-content; 
+      display:block; margin:20px auto; text-align:center; font-size:18px; 
+      padding:10px 20px; background:#4CAF50; color:#fff; font-weight:bold; 
+      border-radius:8px; width:fit-content; 
     }
-    .busca-container { 
-      margin:10px; 
-      text-align:center; 
-    }
+    .busca-container { margin:10px; text-align:center; }
     .busca-container input { 
-      padding:10px; 
-      width:100%; 
-      max-width:400px; 
-      border:1px solid #ddd; 
-      border-radius:5px; 
+      padding:10px; width:100%; max-width:400px; border:1px solid #ddd; border-radius:5px; 
     }
     .tabela-container { 
-      overflow-x:auto; 
-      margin:10px; 
-      border:1px solid #ddd; 
-      border-radius:5px; 
-      max-height:70vh; 
-      overflow-y:auto; 
-      background:#fff; 
-      box-shadow:0 2px 6px rgba(0,0,0,0.1);
+      overflow-x:auto; margin:10px; border:1px solid #ddd; border-radius:5px; 
+      max-height:70vh; overflow-y:auto; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.1);
     }
-    table { 
-      width:100%; 
-      border-collapse:collapse; 
-      min-width:900px; 
-      font-size:14px; 
-    }
+    table { width:100%; border-collapse:collapse; min-width:900px; font-size:14px; }
     thead th { 
-      position:sticky; 
-      top:0; 
-      background:#4CAF50; 
-      color:#fff; 
-      padding:10px; 
-      text-align:left; 
+      position:sticky; top:0; background:#4CAF50; color:#fff; padding:10px; text-align:left; 
     }
     tbody tr:nth-child(even) { background:#E2F0D9; }
     tbody tr:nth-child(odd) { background:#FFFFFF; }
-    tbody td { 
-      padding:8px; 
-      vertical-align:top; 
-      border-bottom:1px solid #eee; 
-    }
-    a.whatsapp-link { 
-      color:#25D366; 
-      font-weight:bold; 
-      text-decoration:none; 
-    }
-    a.whatsapp-link:hover { 
-      text-decoration:underline; 
-    }
+    tbody td { padding:8px; vertical-align:top; border-bottom:1px solid #eee; }
+    tbody tr:hover { background:#c8e6c9; cursor:pointer; }
+    a.whatsapp-link { color:#25D366; font-weight:bold; text-decoration:none; }
+    a.whatsapp-link:hover { text-decoration:underline; }
     .btn-pdf { 
-      display:block;
-      margin:10px auto; 
-      padding:10px 20px; 
-      background:#2196F3; 
-      color:#fff; 
-      border:none; 
-      border-radius:8px; 
-      cursor:pointer; 
-      font-weight:bold; 
-      transition:0.3s;
+      display:block; margin:10px auto; padding:10px 20px; background:#2196F3; color:#fff; 
+      border:none; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.3s;
     }
-    .btn-pdf:hover { 
-      background:#0b7dda; 
-    }
+    .btn-pdf:hover { background:#0b7dda; }
 
     @media(max-width:768px){
       .busca-container input{ max-width:100%; }
@@ -99,11 +47,7 @@
     @media(max-width:500px){
       thead { display:none; }
       table, tbody, tr, td { display:block; width:100%; }
-      td { 
-        border:none; 
-        padding:8px 5px; 
-        border-bottom:1px solid #eee; 
-      }
+      td { border:none; padding:8px 5px; border-bottom:1px solid #eee; }
     }
   </style>
 </head>
@@ -140,11 +84,10 @@
       const json = await resp.json();
       if (!json || json.length === 0) return;
 
-      // Pega as chaves
       const todasColunas = Object.keys(json[0]);
 
-      // Mantém apenas colunas B até M
-      headers = todasColunas.slice(1, 13); // B=índice1 até M=índice12
+      // Mantém apenas colunas B até M, exceto "ACEITE O TERMO"
+      headers = todasColunas.slice(1, 13).filter(h => !h.toLowerCase().includes("aceite"));
 
       dados = json;
 
@@ -173,7 +116,6 @@
           const td = document.createElement("td");
           let val = (linha[h] ?? "").toString().trim();
 
-          // Se for WhatsApp, cria link
           if (h.toLowerCase().includes("whats")) {
             const digits = val.replace(/\D/g, "");
             if (digits) {
@@ -197,14 +139,13 @@
       document.getElementById("contador").textContent = "Total de inscritos: " + linhas.length;
     }
 
-    // Busca
     document.getElementById("busca").addEventListener("input", function(){
       const filtro = this.value.toLowerCase();
       const linhas = document.querySelectorAll("#corpo tr");
       let cont = 0;
 
       linhas.forEach(tr => {
-        const nome = (tr.cells[0]?.textContent || "").toLowerCase(); // agora a 1ª coluna visível é a B
+        const nome = (tr.cells[0]?.textContent || "").toLowerCase();
         const show = nome.includes(filtro);
         tr.style.display = show ? "" : "none";
         if (show) cont++;
@@ -213,7 +154,6 @@
       document.getElementById("contador").textContent = "Total de inscritos: " + cont;
     });
 
-    // PDF
     document.getElementById("btnPDF").addEventListener("click", () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'pt', 'a4');

@@ -1,175 +1,109 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lista de Inscritos</title>
   <style>
-    body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; }
-    h1 { text-align:center; margin:20px 0; }
-    .contador { display:block; margin:20px auto; text-align:center; font-size:18px; padding:10px 20px; background:#4CAF50; color:#fff; font-weight:bold; border-radius:8px; width:fit-content; }
-    .busca-container { margin:10px; text-align:center; }
-    .busca-container input { padding:10px; width:100%; max-width:400px; border:1px solid #ddd; border-radius:5px; }
-    .tabela-container { overflow-x:auto; margin:10px; border:1px solid #ddd; border-radius:5px; max-height:70vh; overflow-y:auto; background:#fff; }
-    table { width:100%; border-collapse:collapse; min-width:900px; font-size:14px; }
-    thead th { position:sticky; top:0; background:#4CAF50; color:#fff; padding:10px; text-align:left; }
-    tbody tr:nth-child(even) { background:#E2F0D9; }
-    tbody tr:nth-child(odd) { background:#FFFFFF; }
-    tbody td { padding:8px; vertical-align:top; border:none; }
-    a.whatsapp-link { color:#25D366; font-weight:bold; text-decoration:none; }
-    a.whatsapp-link:hover { text-decoration:underline; }
-    .btn-pdf { margin:10px; padding:10px 20px; background:#2196F3; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; }
-    .btn-pdf:hover { background:#0b7dda; }
-
-    @media(max-width:768px){
-      .busca-container input{ max-width:100%; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
     }
-    @media(max-width:500px){
-      thead { display:none; }
-      table, tbody, tr, td { display:block; width:100%; }
-      td { border:none; padding:8px 5px; }
+    h1 {
+      text-align: center;
+    }
+    #contador {
+      margin: 10px 0;
+      font-weight: bold;
+    }
+    input {
+      margin: 10px 0;
+      padding: 8px;
+      width: 100%;
+      max-width: 400px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background: #f4f4f4;
+    }
+    tr:nth-child(even) {
+      background: #f9f9f9;
     }
   </style>
 </head>
 <body>
   <h1>Lista de Inscritos</h1>
-
-  <div class="contador" id="contador">Total de inscritos: 0</div>
-
-  <div class="busca-container">
-    <input type="text" id="busca" placeholder="Buscar por nome...">
-  </div>
-
-  <button class="btn-pdf" id="btnPDF">Gerar PDF</button>
-
-  <div class="tabela-container" id="tabela-container">
-    <table id="tabela">
-      <thead><tr id="cabecalho"></tr></thead>
-      <tbody id="corpo"></tbody>
-    </table>
-  </div>
-
-  <!-- jsPDF + AutoTable -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <div id="contador">Total de inscritos: 0</div>
+  <input type="text" id="busca" placeholder="Buscar inscrito...">
+  <table id="tabela">
+    <thead></thead>
+    <tbody></tbody>
+  </table>
 
   <script>
     const SHEET_URL = "https://opensheet.vercel.app/1gMYAi09IOMMGM5neOO2I2tiT9CGlCgt8WU5psa-d8sQ/Respostas ao formulário 1";
-
-    let headers = [];
     let dados = [];
+    let headers = [];
 
     async function carregarInscritos(){
       const resp = await fetch(SHEET_URL);
       const json = await resp.json();
       if (!json || json.length === 0) return;
 
-      // Pega cabeçalhos originais
-      let origHeaders = Object.keys(json[0]);
+      // Mantém somente colunas B até M
+      headers = Object.keys(json[0]).filter((h, idx) => idx >= 1 && idx <= 12);
 
-      // Remove colunas A (primeira), N e O
-      origHeaders = origHeaders.filter((h, idx) => idx !== 0 && idx !== 13 && idx !== 14);
-
-      // Reordena coluna E antes da F (E=índice 4, F=índice 5 originalmente)
-      const colE = origHeaders.splice(3,1)[0]; // remove E
-      origHeaders.splice(3,0,colE); // insere antes da F
-
-      headers = origHeaders;
       dados = json;
-
       montarCabecalho();
       montarTabela(dados);
       atualizarContagem();
     }
 
     function montarCabecalho(){
-      const headEl = document.getElementById("cabecalho");
-      headEl.innerHTML = "";
+      const thead = document.querySelector("#tabela thead");
+      thead.innerHTML = "";
+      const tr = document.createElement("tr");
       headers.forEach(h => {
         const th = document.createElement("th");
         th.textContent = h;
-        headEl.appendChild(th);
+        tr.appendChild(th);
       });
+      thead.appendChild(tr);
     }
 
-    function montarTabela(linhas){
-      const corpo = document.getElementById("corpo");
-      corpo.innerHTML = "";
-
-      linhas.forEach(linha => {
+    function montarTabela(filtrados){
+      const tbody = document.querySelector("#tabela tbody");
+      tbody.innerHTML = "";
+      filtrados.forEach(row => {
         const tr = document.createElement("tr");
         headers.forEach(h => {
           const td = document.createElement("td");
-          let val = (linha[h] ?? "").toString().trim();
-
-          // Se for WhatsApp, cria link
-          if (h.toLowerCase().includes("whats")) {
-            const digits = val.replace(/\D/g, "");
-            if (digits) {
-              const withDDI = digits.startsWith("55") ? digits : "55" + digits;
-              td.innerHTML = `<a target="_blank" rel="noopener noreferrer" class="whatsapp-link" href="https://wa.me/${withDDI}">${digits}</a>`;
-            } else {
-              td.textContent = "";
-            }
-          } else {
-            td.textContent = val;
-          }
-
+          td.textContent = row[h] || "";
           tr.appendChild(td);
         });
-        corpo.appendChild(tr);
+        tbody.appendChild(tr);
       });
     }
 
     function atualizarContagem(){
-      const linhas = document.querySelectorAll("#corpo tr:not([style*='display: none'])");
-      document.getElementById("contador").textContent = "Total de inscritos: " + linhas.length;
+      document.getElementById("contador").textContent = `Total de inscritos: ${dados.length}`;
     }
 
-    // Busca
     document.getElementById("busca").addEventListener("input", function(){
-      const filtro = this.value.toLowerCase();
-      const linhas = document.querySelectorAll("#corpo tr");
-      let cont = 0;
-
-      linhas.forEach(tr => {
-        const nome = (tr.cells[0]?.textContent || "").toLowerCase(); // assume primeira coluna é nome
-        const show = nome.includes(filtro);
-        tr.style.display = show ? "" : "none";
-        if (show) cont++;
-      });
-
-      document.getElementById("contador").textContent = "Total de inscritos: " + cont;
-    });
-
-    // PDF
-    document.getElementById("btnPDF").addEventListener("click", () => {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('landscape', 'pt', 'a4');
-
-      const cabecalho = headers;
-      const dadosTabela = [];
-      document.querySelectorAll("#corpo tr").forEach(tr => {
-        if (tr.style.display !== "none") {
-          const linha = Array.from(tr.cells).map(td => td.textContent);
-          dadosTabela.push(linha);
-        }
-      });
-
-      doc.setFontSize(14);
-      doc.text("Lista de Inscritos", doc.internal.pageSize.getWidth()/2, 30, { align: "center" });
-
-      doc.autoTable({
-        head: [cabecalho],
-        body: dadosTabela,
-        startY: 50,
-        styles: { fontSize: 8, cellPadding: 3, lineWidth: 0 },
-        headStyles: { fillColor: [76, 175, 80], textColor: 255, halign: "left", lineWidth: 0 },
-        alternateRowStyles: { fillColor: [226, 240, 217] },
-        bodyStyles: { fillColor: [255, 255, 255], lineWidth: 0 }
-      });
-
-      doc.save("lista_inscritos.pdf");
+      const termo = this.value.toLowerCase();
+      const filtrados = dados.filter(row =>
+        headers.some(h => (row[h] || "").toLowerCase().includes(termo))
+      );
+      montarTabela(filtrados);
     });
 
     carregarInscritos();

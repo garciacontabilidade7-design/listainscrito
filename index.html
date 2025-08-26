@@ -64,7 +64,17 @@
       const json = await resp.json();
       if (!json || json.length === 0) return;
 
-      headers = Object.keys(json[0]);
+      // Pega cabeçalhos originais
+      let origHeaders = Object.keys(json[0]);
+
+      // Remove colunas A (primeira), N e O
+      origHeaders = origHeaders.filter((h, idx) => idx !== 0 && idx !== 13 && idx !== 14);
+
+      // Reordena coluna E antes da F (E=índice 4, F=índice 5 originalmente)
+      const colE = origHeaders.splice(3,1)[0]; // remove E
+      origHeaders.splice(3,0,colE); // insere antes da F
+
+      headers = origHeaders;
       dados = json;
 
       montarCabecalho();

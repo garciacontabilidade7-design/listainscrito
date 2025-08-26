@@ -1,176 +1,167 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lista de Inscritos</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; }
-    h1 { text-align:center; margin:20px 0; }
-    .contador { display:block; margin:20px auto; text-align:center; font-size:18px; padding:10px 20px; background:#4CAF50; color:#fff; font-weight:bold; border-radius:8px; width:fit-content; }
-    .busca-container { margin:10px; text-align:center; }
-    .busca-container input { padding:10px; width:100%; max-width:400px; border:1px solid #ddd; border-radius:5px; }
-    .tabela-container { overflow-x:auto; margin:10px; border:1px solid #ddd; border-radius:5px; max-height:70vh; overflow-y:auto; background:#fff; }
-    table { width:100%; border-collapse:collapse; min-width:900px; font-size:14px; }
-    thead th { position:sticky; top:0; background:#4CAF50; color:#fff; padding:10px; text-align:left; }
-    tbody tr:nth-child(even) { background:#E2F0D9; } /* Verde claro */
-    tbody tr:nth-child(odd) { background:#FFFFFF; }  /* Branco */
-    tbody td { padding:8px; vertical-align:top; border:none; } /* sem linhas */
-    a.whatsapp-link { color:#25D366; font-weight:bold; text-decoration:none; }
-    a.whatsapp-link:hover { text-decoration:underline; }
-    .btn-pdf { margin:10px; padding:10px 20px; background:#2196F3; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; }
-    .btn-pdf:hover { background:#0b7dda; }
-
-    @media(max-width:768px){
-      .busca-container input{ max-width:100%; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f4f4f4;
+      text-align: center;
     }
-
-    /* Mobile simplificado */
-    @media(max-width:500px){
-      thead { display:none; }
-      table, tbody, tr, td { display:block; width:100%; }
-      td { border:none; padding:8px 5px; }
+    h1 {
+      color: #333;
+    }
+    #total {
+      font-size: 18px;
+      margin: 10px 0;
+      padding: 10px;
+      background: #4CAF50;
+      color: white;
+      border-radius: 8px;
+      display: inline-block;
+    }
+    #erro {
+      color: red;
+      margin: 10px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background: #4CAF50;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    #buscar {
+      margin: 15px 0;
+      padding: 8px;
+      width: 90%;
+      max-width: 400px;
+    }
+    button {
+      margin: 15px 0;
+      padding: 10px 20px;
+      background: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #0b7dda;
     }
   </style>
 </head>
 <body>
   <h1>Lista de Inscritos</h1>
+  <div id="total">Total de inscritos: 0</div>
+  <div id="erro"></div>
+  <input type="text" id="buscar" placeholder="Buscar por nome..." onkeyup="filtrarTabela()">
+  <br>
+  <button onclick="gerarPDF()">Gerar PDF</button>
 
-  <div class="contador" id="contador">Total de inscritos: 0</div>
-
-  <div class="busca-container">
-    <input type="text" id="busca" placeholder="Buscar por nome...">
-  </div>
-
-  <button class="btn-pdf" id="btnPDF">Gerar PDF</button>
-
-  <div class="tabela-container" id="tabela-container">
-    <table id="tabela">
-      <thead><tr id="cabecalho"></tr></thead>
-      <tbody id="corpo"></tbody>
-    </table>
-  </div>
-
-  <!-- PapaParse -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <!-- jsPDF + AutoTable -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <table id="tabela">
+    <thead>
+      <tr id="cabecalho"></tr>
+    </thead>
+    <tbody id="corpo"></tbody>
+  </table>
 
   <script>
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?gid=1297981915&single=true&output=csv";
+    const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnvpbDC9xv14rAKgB-smE41QwHhtDzkebvybZXZJI3IPf5CgGIysavUtCNSU2Ju5NYDnru6_iGvPBJ/pub?output=csv";
 
-    // Índices (ajustar se necessário)
-    const COLS = [1,2,3,4,5,6,7,8,9,10,11,12];
+    async function carregarInscritos() {
+      try {
+        const response = await fetch(url);
+        const data = await response.text();
+        const rows = data.split("\n").map(r => r.split(","));
 
-    async function carregarInscritos(){
-      const resp = await fetch(CSV_URL);
-      const csvText = await resp.text();
+        if (rows.length <= 1) {
+          document.getElementById("erro").innerText = "Nenhum inscrito encontrado.";
+          return;
+        }
 
-      const parsed = Papa.parse(csvText, { header: false, skipEmptyLines: true, dynamicTyping: false });
-      const rows = parsed.data;
-      if (!rows || rows.length === 0) return;
-
-      const headers = rows[0];
-      const data = rows.slice(1).filter(linha => (linha[1] || "").toString().trim() !== "");
-
-      montarCabecalho(headers);
-      montarTabela(data, headers);
-      atualizarContagem();
+        mostrarInscritos(rows);
+      } catch (error) {
+        console.error("Erro ao carregar inscritos:", error);
+        document.getElementById("erro").innerText = "Não foi possível carregar a lista agora. Tente recarregar a página.";
+      }
     }
 
-    function montarCabecalho(headers){
-      const headEl = document.getElementById("cabecalho");
-      headEl.innerHTML = "";
-      COLS.forEach(idx => {
-        const th = document.createElement("th");
-        th.textContent = headers[idx] || "";
-        headEl.appendChild(th);
-      });
-    }
-
-    function montarTabela(data, headers){
+    function mostrarInscritos(rows) {
+      const cabecalho = document.getElementById("cabecalho");
       const corpo = document.getElementById("corpo");
+
+      cabecalho.innerHTML = "";
       corpo.innerHTML = "";
 
-      data.forEach(linha => {
-        const nome = (linha[1] || "").toString().trim();
-        if (!nome) return;
+      // Cabeçalho
+      rows[0].forEach(col => {
+        let th = document.createElement("th");
+        th.innerText = col.trim();
+        cabecalho.appendChild(th);
+      });
 
-        const tr = document.createElement("tr");
-        COLS.forEach(idx => {
-          const td = document.createElement("td");
-          const val = (linha[idx] ?? "").toString().trim();
-
-          if (idx === 8) { // WhatsApp
-            const digits = val.replace(/\D/g, "");
-            if (digits) {
-              const withDDI = digits.startsWith("55") ? digits : "55" + digits;
-              const href = `https://wa.me/${withDDI}`;
-              td.innerHTML = `<a target="_blank" rel="noopener noreferrer" class="whatsapp-link" href="${href}">${digits}</a>`;
-            } else {
-              td.textContent = "";
-            }
-          } else {
-            td.textContent = val;
-          }
-
+      // Dados
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i].length < 2) continue; 
+        let tr = document.createElement("tr");
+        rows[i].forEach(col => {
+          let td = document.createElement("td");
+          td.innerText = col.trim();
           tr.appendChild(td);
         });
         corpo.appendChild(tr);
+      }
+
+      // Atualiza total
+      document.getElementById("total").innerText = "Total de inscritos: " + (rows.length - 1);
+    }
+
+    function filtrarTabela() {
+      let input = document.getElementById("buscar").value.toLowerCase();
+      let linhas = document.querySelectorAll("#corpo tr");
+      linhas.forEach(linha => {
+        let texto = linha.innerText.toLowerCase();
+        linha.style.display = texto.includes(input) ? "" : "none";
       });
     }
 
-    function atualizarContagem(){
-      const linhas = document.querySelectorAll("#corpo tr:not([style*='display: none'])");
-      document.getElementById("contador").textContent = "Total de inscritos: " + linhas.length;
-    }
-
-    // Busca
-    document.getElementById("busca").addEventListener("input", function(){
-      const filtro = this.value.toLowerCase();
-      const linhas = document.querySelectorAll("#corpo tr");
-      let cont = 0;
-
-      linhas.forEach(tr => {
-        const nome = (tr.cells[COLS.indexOf(1)]?.textContent || "").toLowerCase();
-        const show = nome.includes(filtro);
-        tr.style.display = show ? "" : "none";
-        if (show) cont++;
-      });
-
-      document.getElementById("contador").textContent = "Total de inscritos: " + cont;
-    });
-
-    // Botão PDF usando jsPDF + autotable (sem linhas)
-    document.getElementById("btnPDF").addEventListener("click", () => {
+    function gerarPDF() {
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('landscape', 'pt', 'a4');
+      const doc = new jsPDF();
+      doc.text("Lista de Inscritos", 10, 10);
 
-      const cabecalho = Array.from(document.querySelectorAll("#cabecalho th")).map(th => th.textContent);
-      const dados = [];
-      document.querySelectorAll("#corpo tr").forEach(tr => {
-        if (tr.style.display !== "none") {
-          const linha = Array.from(tr.cells).map(td => td.textContent);
-          dados.push(linha);
-        }
+      let linhas = [];
+      document.querySelectorAll("#tabela tr").forEach(tr => {
+        let linha = [];
+        tr.querySelectorAll("th, td").forEach(td => linha.push(td.innerText));
+        linhas.push(linha);
       });
 
-      doc.setFontSize(14);
-      doc.text("Lista de Inscritos", doc.internal.pageSize.getWidth()/2, 30, { align: "center" });
-
-      doc.autoTable({
-        head: [cabecalho],
-        body: dados,
-        startY: 50,
-        styles: { fontSize: 8, cellPadding: 3, lineWidth: 0 }, // sem borda
-        headStyles: { fillColor: [76, 175, 80], textColor: 255, halign: "left", lineWidth: 0 },
-        alternateRowStyles: { fillColor: [226, 240, 217] }, // Verde claro
-        bodyStyles: { fillColor: [255, 255, 255], lineWidth: 0 }
+      let y = 20;
+      linhas.forEach(linha => {
+        doc.text(linha.join(" | "), 10, y);
+        y += 10;
       });
 
-      doc.save("lista_inscritos.pdf");
-    });
+      doc.save("inscritos.pdf");
+    }
 
     carregarInscritos();
   </script>

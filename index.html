@@ -54,26 +54,17 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <script>
-    // Troque o nome da aba pelo correto
     const SHEET_URL = "https://opensheet.vercel.app/1gMYAi09IOMMGM5neOO2I2tiT9CGlCgt8WU5psa-d8sQ/Respostas ao formulário 1";
 
     let headers = [];
     let dados = [];
-
-    // Colunas a remover
-    const COLUNAS_REMOVER = [
-      "Carimbo de data/hora",
-      "ACEITE O TERMO",
-      "VALOR DA INSCRIÇÃO PIX: pix.colniza.misom@adventistas.org ENVIAR COMPROVANTE: 66 984368478 ADRYENE",
-      "VALOR DA INSCRIÇÃO PIX: pix.colniza.misom@adventistas.org ENVIAR COMPROVANTE: 66 984368478 ADRYENE."
-    ];
 
     async function carregarInscritos(){
       const resp = await fetch(SHEET_URL);
       const json = await resp.json();
       if (!json || json.length === 0) return;
 
-      headers = Object.keys(json[0]).filter(h => !COLUNAS_REMOVER.includes(h));
+      headers = Object.keys(json[0]);
       dados = json;
 
       montarCabecalho();
@@ -101,6 +92,7 @@
           const td = document.createElement("td");
           let val = (linha[h] ?? "").toString().trim();
 
+          // Se for WhatsApp, cria link
           if (h.toLowerCase().includes("whats")) {
             const digits = val.replace(/\D/g, "");
             if (digits) {
@@ -124,15 +116,15 @@
       document.getElementById("contador").textContent = "Total de inscritos: " + linhas.length;
     }
 
-    // Busca (todas as colunas)
+    // Busca
     document.getElementById("busca").addEventListener("input", function(){
       const filtro = this.value.toLowerCase();
       const linhas = document.querySelectorAll("#corpo tr");
       let cont = 0;
 
       linhas.forEach(tr => {
-        const texto = Array.from(tr.cells).map(td => td.textContent.toLowerCase()).join(" ");
-        const show = texto.includes(filtro);
+        const nome = (tr.cells[0]?.textContent || "").toLowerCase(); // assume primeira coluna é nome
+        const show = nome.includes(filtro);
         tr.style.display = show ? "" : "none";
         if (show) cont++;
       });

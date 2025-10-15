@@ -35,11 +35,14 @@
     tbody tr:hover { background:#c8e6c9; cursor:pointer; }
     a.whatsapp-link { color:#25D366; font-weight:bold; text-decoration:none; }
     a.whatsapp-link:hover { text-decoration:underline; }
-    .btn-pdf { 
-      display:block; margin:10px auto; padding:10px 20px; background:#2196F3; color:#fff; 
-      border:none; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.3s;
+    .btn-pdf, .btn-csv { 
+      display:block; margin:10px auto; padding:10px 20px; 
+      color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.3s;
     }
+    .btn-pdf { background:#2196F3; }
     .btn-pdf:hover { background:#0b7dda; }
+    .btn-csv { background:#FF9800; }
+    .btn-csv:hover { background:#e68900; }
 
     @media(max-width:768px){
       .busca-container input{ max-width:100%; }
@@ -61,6 +64,7 @@
   </div>
 
   <button class="btn-pdf" id="btnPDF">Gerar PDF</button>
+  <button class="btn-csv" id="btnCSV">Gerar Seguro</button>
 
   <div class="tabela-container" id="tabela-container">
     <table id="tabela">
@@ -74,7 +78,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <script>
-    const SHEET_URL = "https://opensheet.vercel.app/1eL2o3TdQUKkx_qrw6iyAg7pI2FpVivu67AJrz2eOo90/Respostas ao formulário 1";
+    const SHEET_URL = "https://opensheet.elk.sh/1eL2o3TdQUKkx_qrw6iyAg7pI2FpVivu67AJrz2eOo90/Respostas%20ao%20formul%C3%A1rio%201";
 
     let headers = [];
     let dados = [];
@@ -86,9 +90,16 @@
 
       const todasColunas = Object.keys(json[0]);
 
-      // Mantém apenas colunas B até M, exceto "ACEITE O TERMO"
-      headers = todasColunas.slice(1, 13).filter(h => !h.toLowerCase().includes("aceite"));
+      const colSexo = todasColunas.find(c => c.toLowerCase().includes("sexo"));
+      const colunasBase = todasColunas.slice(1, 13);
+      if (todasColunas[15]) colunasBase[7] = todasColunas[15];
 
+      const posicaoC = 2;
+      if (colSexo && !colunasBase.includes(colSexo)) {
+        colunasBase.splice(posicaoC, 0, colSexo);
+      }
+
+      headers = colunasBase.filter(h => !h.toLowerCase().includes("aceite"));
       dados = json;
 
       montarCabecalho();
@@ -154,6 +165,7 @@
       document.getElementById("contador").textContent = "Total de inscritos: " + cont;
     });
 
+    // 🟦 Gerar PDF
     document.getElementById("btnPDF").addEventListener("click", () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'pt', 'a4');
@@ -181,6 +193,50 @@
       });
 
       doc.save("lista_inscritos.pdf");
+    });
+
+    // 🟧 Gerar CSV (Seguro)
+    document.getElementById("btnCSV").addEventListener("click", () => {
+      const linhasVisiveis = Array.from(document.querySelectorAll("#corpo tr")).filter(tr => tr.style.display !== "none");
+      const colunasDesejadas = {
+        nome: "Nome",
+        nomeSocial: "Nome social",
+        sexo: "Sexo",
+        dataNascimento: "Data de nascimento",
+        cpf: "CPF"
+      };
+
+      // Detecta automaticamente colunas equivalentes no cabeçalho
+      const mapa = {};
+      for (const [key, nome] of Object.entries(colunasDesejadas)) {
+        mapa[key] = headers.find(h => h.toLowerCase().includes(nome.toLowerCase().split(" ")[0])) || null;
+      }
+
+      const csvLinhas = [];
+      csvLinhas.push(Object.values(colunasDesejadas).join(";"));
+
+      linhasVisiveis.forEach(tr => {
+        const linha = {};
+        headers.forEach((h, i) => {
+          linha[h] = tr.cells[i]?.textContent || "";
+        });
+
+        const nome = linha[mapa.nome] || "";
+        const nomeSocial = ""; // sempre em branco
+        const sexo = linha[mapa.sexo] || "";
+        const data = linha[mapa.dataNascimento] || "";
+        const cpf = linha[mapa.cpf] || "";
+
+        csvLinhas.push([nome, nomeSocial, sexo, data, cpf].join(";"));
+      });
+
+      const blob = new Blob([csvLinhas.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "lista_seguro.csv";
+      link.click();
+      URL.revokeObjectURL(url);
     });
 
     carregarInscritos();

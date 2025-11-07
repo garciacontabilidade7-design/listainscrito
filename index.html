@@ -5,48 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Lista de Inscritos</title>
   <style>
-    body { 
-      font-family: Arial, sans-serif; 
-      background:#f4f4f4; 
-      margin:0; 
-      padding:0; 
-    }
+    body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; }
     h1 { text-align:center; margin:20px 0; }
-    .contador { 
-      display:block; margin:20px auto; text-align:center; font-size:18px; 
-      padding:10px 20px; background:#4CAF50; color:#fff; font-weight:bold; 
-      border-radius:8px; width:fit-content; 
-    }
+    .status { text-align:center; margin:6px 0; color:#333; }
+    .contador { display:block; margin:10px auto; text-align:center; font-size:18px; padding:10px 20px; background:#4CAF50; color:#fff; font-weight:bold; border-radius:8px; width:fit-content; }
     .busca-container { margin:10px; text-align:center; }
-    .busca-container input { 
-      padding:10px; width:100%; max-width:400px; border:1px solid #ddd; border-radius:5px; 
-    }
-    .tabela-container { 
-      overflow-x:auto; margin:10px; border:1px solid #ddd; border-radius:5px; 
-      max-height:70vh; overflow-y:auto; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.1);
-    }
+    .busca-container input { padding:10px; width:100%; max-width:400px; border:1px solid #ddd; border-radius:5px; }
+    .tabela-container { overflow-x:auto; margin:10px; border:1px solid #ddd; border-radius:5px; max-height:70vh; overflow-y:auto; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
     table { width:100%; border-collapse:collapse; min-width:900px; font-size:14px; }
-    thead th { 
-      position:sticky; top:0; background:#4CAF50; color:#fff; padding:10px; text-align:left; 
-    }
+    thead th { position:sticky; top:0; background:#4CAF50; color:#fff; padding:10px; text-align:left; }
     tbody tr:nth-child(even) { background:#E2F0D9; }
     tbody tr:nth-child(odd) { background:#FFFFFF; }
     tbody td { padding:8px; vertical-align:top; border-bottom:1px solid #eee; }
     tbody tr:hover { background:#c8e6c9; cursor:pointer; }
     a.whatsapp-link { color:#25D366; font-weight:bold; text-decoration:none; }
     a.whatsapp-link:hover { text-decoration:underline; }
-    .btn-pdf, .btn-csv { 
-      display:block; margin:10px auto; padding:10px 20px; 
-      color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.3s;
-    }
+    .btn-pdf, .btn-csv { display:inline-block; margin:10px 6px; padding:10px 20px; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.3s; }
     .btn-pdf { background:#2196F3; }
     .btn-pdf:hover { background:#0b7dda; }
     .btn-csv { background:#FF9800; }
     .btn-csv:hover { background:#e68900; }
-
-    @media(max-width:768px){
-      .busca-container input{ max-width:100%; }
-    }
+    @media(max-width:768px){ .busca-container input{ max-width:100%; } }
     @media(max-width:500px){
       thead { display:none; }
       table, tbody, tr, td { display:block; width:100%; }
@@ -56,55 +35,56 @@
 </head>
 <body>
   <h1>Lista de Inscritos</h1>
-
+  <div class="status" id="status">Carregando inscritos...</div>
   <div class="contador" id="contador">Total de inscritos: 0</div>
 
   <div class="busca-container">
-    <input type="text" id="busca" placeholder="Buscar por nome...">
+    <input type="text" id="busca" placeholder="Buscar por nome, email, telefone...">
   </div>
 
-  <button class="btn-pdf" id="btnPDF">Gerar PDF</button>
-  <button class="btn-csv" id="btnCSV">Gerar Seguro</button>
+  <div style="text-align:center">
+    <button class="btn-pdf" id="btnPDF">Gerar PDF</button>
+    <button class="btn-csv" id="btnCSV">Gerar CSV</button>
+  </div>
 
   <div class="tabela-container" id="tabela-container">
-    <table id="tabela">
+    <table id="tabela" aria-live="polite">
       <thead><tr id="cabecalho"></tr></thead>
       <tbody id="corpo"></tbody>
     </table>
   </div>
 
-  <!-- jsPDF + AutoTable -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <script>
-    const SHEET_URL = "https://opensheet.elk.sh/1eL2o3TdQUKkx_qrw6iyAg7pI2FpVivu67AJrz2eOo90/Respostas%20ao%20formul%C3%A1rio%201";
+    const SHEET_URL =
+      "https://opensheet.elk.sh/1eL2o3TdQUKkx_qrw6iyAg7pI2FpVivu67AJrz2eOo90/Respostas%20ao%20formul%C3%A1rio%201";
 
     let headers = [];
     let dados = [];
 
     async function carregarInscritos(){
-      const resp = await fetch(SHEET_URL);
-      const json = await resp.json();
-      if (!json || json.length === 0) return;
+      const statusEl = document.getElementById("status");
+      try {
+        statusEl.textContent = "Buscando dados da planilha...";
+        const resp = await fetch(SHEET_URL);
+        if (!resp.ok) throw new Error("Falha no carregamento: " + resp.status);
 
-      const todasColunas = Object.keys(json[0]);
+        const json = await resp.json();
+        if (!json || json.length === 0) throw new Error("Planilha vazia ou sem acesso à aba.");
 
-      const colSexo = todasColunas.find(c => c.toLowerCase().includes("sexo"));
-      const colunasBase = todasColunas.slice(1, 13);
-      if (todasColunas[15]) colunasBase[7] = todasColunas[15];
+        headers = Object.keys(json[0]);
+        dados = json;
 
-      const posicaoC = 2;
-      if (colSexo && !colunasBase.includes(colSexo)) {
-        colunasBase.splice(posicaoC, 0, colSexo);
+        montarCabecalho();
+        montarTabela(dados);
+        atualizarContagem();
+        statusEl.textContent = "Dados carregados com sucesso!";
+      } catch(e) {
+        console.error(e);
+        statusEl.textContent = "Erro ao carregar dados.";
       }
-
-      headers = colunasBase.filter(h => !h.toLowerCase().includes("aceite"));
-      dados = json;
-
-      montarCabecalho();
-      montarTabela(dados);
-      atualizarContagem();
     }
 
     function montarCabecalho(){
@@ -117,124 +97,81 @@
       });
     }
 
+    function isPhoneHeader(h){
+      return /whats|telefone|celular|fone|contato/i.test(h);
+    }
+
     function montarTabela(linhas){
       const corpo = document.getElementById("corpo");
       corpo.innerHTML = "";
 
       linhas.forEach(linha => {
         const tr = document.createElement("tr");
+
         headers.forEach(h => {
           const td = document.createElement("td");
-          let val = (linha[h] ?? "").toString().trim();
+          const val = (linha[h] || "").toString();
 
-          if (h.toLowerCase().includes("whats")) {
-            const digits = val.replace(/\D/g, "");
-            if (digits) {
-              const withDDI = digits.startsWith("55") ? digits : "55" + digits;
-              td.innerHTML = `<a target="_blank" rel="noopener noreferrer" class="whatsapp-link" href="https://wa.me/${withDDI}">${digits}</a>`;
-            } else {
-              td.textContent = "";
-            }
+          if (isPhoneHeader(h)) {
+            const num = val.replace(/\D/g,"");
+            if (num)
+              td.innerHTML = `<a class="whatsapp-link" target="_blank" href="https://wa.me/55${num}">${val}</a>`;
+            else td.textContent = val;
           } else {
             td.textContent = val;
           }
 
           tr.appendChild(td);
         });
+
         corpo.appendChild(tr);
       });
     }
 
     function atualizarContagem(){
-      const linhas = document.querySelectorAll("#corpo tr:not([style*='display: none'])");
-      document.getElementById("contador").textContent = "Total de inscritos: " + linhas.length;
+      const visiveis = document.querySelectorAll("#corpo tr:not([style*='display: none'])").length;
+      document.getElementById("contador").textContent =
+        "Total de inscritos: " + visiveis;
     }
 
     document.getElementById("busca").addEventListener("input", function(){
       const filtro = this.value.toLowerCase();
       const linhas = document.querySelectorAll("#corpo tr");
-      let cont = 0;
-
       linhas.forEach(tr => {
-        const nome = (tr.cells[0]?.textContent || "").toLowerCase();
-        const show = nome.includes(filtro);
-        tr.style.display = show ? "" : "none";
-        if (show) cont++;
+        const txt = tr.innerText.toLowerCase();
+        tr.style.display = txt.includes(filtro) ? "" : "none";
       });
-
-      document.getElementById("contador").textContent = "Total de inscritos: " + cont;
+      atualizarContagem();
     });
 
-    // 🟦 Gerar PDF
     document.getElementById("btnPDF").addEventListener("click", () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'pt', 'a4');
 
-      const cabecalho = headers;
-      const dadosTabela = [];
-      document.querySelectorAll("#corpo tr").forEach(tr => {
-        if (tr.style.display !== "none") {
-          const linha = Array.from(tr.cells).map(td => td.textContent);
-          dadosTabela.push(linha);
-        }
-      });
+      const cab = headers;
+      const linhas = Array.from(document.querySelectorAll("#corpo tr"))
+        .filter(tr => tr.style.display !== "none")
+        .map(tr => Array.from(tr.cells).map(td => td.textContent));
 
       doc.setFontSize(14);
       doc.text("Lista de Inscritos", doc.internal.pageSize.getWidth()/2, 30, { align: "center" });
 
-      doc.autoTable({
-        head: [cabecalho],
-        body: dadosTabela,
-        startY: 50,
-        styles: { fontSize: 8, cellPadding: 3, lineWidth: 0 },
-        headStyles: { fillColor: [76, 175, 80], textColor: 255, halign: "left", lineWidth: 0 },
-        alternateRowStyles: { fillColor: [226, 240, 217] },
-        bodyStyles: { fillColor: [255, 255, 255], lineWidth: 0 }
-      });
-
-      doc.save("lista_inscritos.pdf");
+      doc.autoTable({ head: [cab], body: linhas, startY: 50 });
+      doc.save("inscritos.pdf");
     });
 
-    // 🟧 Gerar CSV (Seguro)
     document.getElementById("btnCSV").addEventListener("click", () => {
-      const linhasVisiveis = Array.from(document.querySelectorAll("#corpo tr")).filter(tr => tr.style.display !== "none");
-      const colunasDesejadas = {
-        nome: "Nome",
-        nomeSocial: "Nome social",
-        sexo: "Sexo",
-        dataNascimento: "Data de nascimento",
-        cpf: "CPF"
-      };
+      const linhas = Array.from(document.querySelectorAll("#corpo tr"))
+        .filter(tr => tr.style.display !== "none")
+        .map(tr => Array.from(tr.cells).map(td => td.textContent.replace(/;/g, ",")));
 
-      // Detecta automaticamente colunas equivalentes no cabeçalho
-      const mapa = {};
-      for (const [key, nome] of Object.entries(colunasDesejadas)) {
-        mapa[key] = headers.find(h => h.toLowerCase().includes(nome.toLowerCase().split(" ")[0])) || null;
-      }
+      const csv = [headers.join(";"), ...linhas.map(l => l.join(";"))].join("\n");
 
-      const csvLinhas = [];
-      csvLinhas.push(Object.values(colunasDesejadas).join(";"));
-
-      linhasVisiveis.forEach(tr => {
-        const linha = {};
-        headers.forEach((h, i) => {
-          linha[h] = tr.cells[i]?.textContent || "";
-        });
-
-        const nome = linha[mapa.nome] || "";
-        const nomeSocial = ""; // sempre em branco
-        const sexo = linha[mapa.sexo] || "";
-        const data = linha[mapa.dataNascimento] || "";
-        const cpf = linha[mapa.cpf] || "";
-
-        csvLinhas.push([nome, nomeSocial, sexo, data, cpf].join(";"));
-      });
-
-      const blob = new Blob([csvLinhas.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "lista_seguro.csv";
+      link.download = "inscritos.csv";
       link.click();
       URL.revokeObjectURL(url);
     });

@@ -78,9 +78,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <script>
-    // ✅ Corrigido: usa proxy CORS com fallback, mantendo tudo igual
-    const PLANILHA_BASE = "https://opensheet.vercel.app/2PACX-1vRrwqF9nPUT9RWQdlUR3CDp96ZBvS6VJlxyugLeLyPZwKoz-GMnLC_LMppD4Y5uxaqlC4XmFftqAvnM/respostas";
-    const SHEET_URL = "https://api.allorigins.win/raw?url=" + encodeURIComponent(PLANILHA_BASE);
+    const SHEET_URL = "https://corsproxy.io/?" + encodeURIComponent("https://opensheet.vercel.app/2PACX-1vRrwqF9nPUT9RWQdlUR3CDp96ZBvS6VJlxyugLeLyPZwKoz-GMnLC_LMppD4Y5uxaqlC4XmFftqAvnM/respostas");
 
     let headers = [];
     let dados = [];
@@ -88,14 +86,26 @@
     async function carregarInscritos(){
       try {
         const resp = await fetch(SHEET_URL);
-        if (!resp.ok) throw new Error("Erro ao buscar planilha");
-        const json = await resp.json();
+        if (!resp.ok) {
+          alert("Erro ao carregar planilha. Verifique o link ou o proxy CORS.");
+          return;
+        }
+
+        let json;
+        try {
+          json = await resp.json();
+        } catch(e) {
+          alert("Erro ao ler os dados da planilha. Verifique se o link está público.");
+          return;
+        }
+
         if (!json || json.length === 0) {
-          alert("⚠️ Nenhum dado encontrado na planilha.");
+          alert("Nenhum dado encontrado na planilha.");
           return;
         }
 
         const todasColunas = Object.keys(json[0]);
+
         const colSexo = todasColunas.find(c => c.toLowerCase().includes("sexo"));
         const colunasBase = todasColunas.slice(1, 13);
         if (todasColunas[15]) colunasBase[7] = todasColunas[15];
@@ -111,9 +121,10 @@
         montarCabecalho();
         montarTabela(dados);
         atualizarContagem();
-      } catch (e) {
-        console.error("❌ Erro:", e);
+
+      } catch (err) {
         alert("Erro ao carregar planilha. Verifique o link ou o proxy CORS.");
+        console.error(err);
       }
     }
 
@@ -231,7 +242,7 @@
         });
 
         const nome = linha[mapa.nome] || "";
-        const nomeSocial = "";
+        const nomeSocial = ""; 
         const sexo = linha[mapa.sexo] || "";
         const data = linha[mapa.dataNascimento] || "";
         const cpf = linha[mapa.cpf] || "";

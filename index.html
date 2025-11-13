@@ -78,54 +78,33 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <script>
-    const SHEET_URL = "https://corsproxy.io/?" + encodeURIComponent("https://opensheet.vercel.app/2PACX-1vRrwqF9nPUT9RWQdlUR3CDp96ZBvS6VJlxyugLeLyPZwKoz-GMnLC_LMppD4Y5uxaqlC4XmFftqAvnM/respostas");
+    const SHEET_URL = "https://opensheet.elk.sh/1eL2o3TdQUKkx_qrw6iyAg7pI2FpVivu67AJrz2eOo90/respostas";
 
     let headers = [];
     let dados = [];
 
     async function carregarInscritos(){
-      try {
-        const resp = await fetch(SHEET_URL);
-        if (!resp.ok) {
-          alert("Erro ao carregar planilha. Verifique o link ou o proxy CORS.");
-          return;
-        }
+      const resp = await fetch(SHEET_URL);
+      const json = await resp.json();
+      if (!json || json.length === 0) return;
 
-        let json;
-        try {
-          json = await resp.json();
-        } catch(e) {
-          alert("Erro ao ler os dados da planilha. Verifique se o link está público.");
-          return;
-        }
+      const todasColunas = Object.keys(json[0]);
 
-        if (!json || json.length === 0) {
-          alert("Nenhum dado encontrado na planilha.");
-          return;
-        }
+      const colSexo = todasColunas.find(c => c.toLowerCase().includes("sexo"));
+      const colunasBase = todasColunas.slice(1, 13);
+      if (todasColunas[15]) colunasBase[7] = todasColunas[15];
 
-        const todasColunas = Object.keys(json[0]);
-
-        const colSexo = todasColunas.find(c => c.toLowerCase().includes("sexo"));
-        const colunasBase = todasColunas.slice(1, 13);
-        if (todasColunas[15]) colunasBase[7] = todasColunas[15];
-
-        const posicaoC = 2;
-        if (colSexo && !colunasBase.includes(colSexo)) {
-          colunasBase.splice(posicaoC, 0, colSexo);
-        }
-
-        headers = colunasBase.filter(h => !h.toLowerCase().includes("aceite"));
-        dados = json;
-
-        montarCabecalho();
-        montarTabela(dados);
-        atualizarContagem();
-
-      } catch (err) {
-        alert("Erro ao carregar planilha. Verifique o link ou o proxy CORS.");
-        console.error(err);
+      const posicaoC = 2;
+      if (colSexo && !colunasBase.includes(colSexo)) {
+        colunasBase.splice(posicaoC, 0, colSexo);
       }
+
+      headers = colunasBase.filter(h => !h.toLowerCase().includes("aceite"));
+      dados = json;
+
+      montarCabecalho();
+      montarTabela(dados);
+      atualizarContagem();
     }
 
     function montarCabecalho(){
@@ -227,6 +206,7 @@
         cpf: "CPF"
       };
 
+      // Detecta automaticamente colunas equivalentes no cabeçalho
       const mapa = {};
       for (const [key, nome] of Object.entries(colunasDesejadas)) {
         mapa[key] = headers.find(h => h.toLowerCase().includes(nome.toLowerCase().split(" ")[0])) || null;
@@ -242,7 +222,7 @@
         });
 
         const nome = linha[mapa.nome] || "";
-        const nomeSocial = ""; 
+        const nomeSocial = ""; // sempre em branco
         const sexo = linha[mapa.sexo] || "";
         const data = linha[mapa.dataNascimento] || "";
         const cpf = linha[mapa.cpf] || "";

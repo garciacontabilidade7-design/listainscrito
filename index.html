@@ -94,34 +94,42 @@
     }
 
     async function carregarInscritos(){
-      const resp = await fetch(SHEET_URL);
-      const json = await resp.json();
-      if (!json || json.length === 0) return;
+  const resp = await fetch(SHEET_URL);
+  const json = await resp.json();
+  if (!json || json.length === 0) return;
 
-      const colunas = Object.keys(json[0]);
+  const colunas = Object.keys(json[0]);
 
-      headers = [
-        colunas[1],
-        colunas[2],
-        colunas[19],
-        colunas[3],
-        colunas[4],
-        colunas[5],
-        colunas[6],
-        colunas[7],
-        colunas[15],
-        colunas[9],
-        colunas[10],
-        colunas[11],
-        colunas[12]
-      ];
+  headers = [
+    colunas[1],
+    colunas[2],
+    colunas[19],
+    colunas[3],
+    colunas[4],
+    colunas[5],
+    colunas[6],
+    colunas[7],
+    colunas[15],
+    colunas[9],
+    colunas[10],
+    colunas[11],
+    colunas[12]
+  ];
 
-      dados = json;
+  // 🔥 NOVA LÓGICA: remover colunas totalmente vazias em todas as linhas
+  headers = headers.filter(h => {
+    return json.some(linha => {
+      const valor = (linha[h] ?? "").toString().trim();
+      return valor !== "";
+    });
+  });
 
-      montarCabecalho();
-      montarTabela(dados);
-      atualizarContagem();
-    }
+  dados = json;
+
+  montarCabecalho();
+  montarTabela(dados);
+  atualizarContagem();
+}
 
     function montarCabecalho(){
       const headEl = document.getElementById("cabecalho");

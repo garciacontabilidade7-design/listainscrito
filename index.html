@@ -88,18 +88,25 @@
       const json = await resp.json();
       if (!json || json.length === 0) return;
 
-      const todasColunas = Object.keys(json[0]);
+      const colunas = Object.keys(json[0]);
 
-      const colSexo = todasColunas.find(c => c.toLowerCase().includes("sexo"));
-      const colunasBase = todasColunas.slice(1, 13);
-      if (todasColunas[15]) colunasBase[7] = todasColunas[15];
+      // ORDEM FIXA: B, C, T, D, E, F, G, H, P, J, K, L, M  
+      headers = [
+        colunas[1],  // B
+        colunas[2],  // C
+        colunas[19], // T
+        colunas[3],  // D
+        colunas[4],  // E
+        colunas[5],  // F
+        colunas[6],  // G
+        colunas[7],  // H
+        colunas[15], // P
+        colunas[9],  // J
+        colunas[10], // K
+        colunas[11], // L
+        colunas[12]  // M
+      ];
 
-      const posicaoC = 2;
-      if (colSexo && !colunasBase.includes(colSexo)) {
-        colunasBase.splice(posicaoC, 0, colSexo);
-      }
-
-      headers = colunasBase.filter(h => !h.toLowerCase().includes("aceite"));
       dados = json;
 
       montarCabecalho();
@@ -165,7 +172,7 @@
       document.getElementById("contador").textContent = "Total de inscritos: " + cont;
     });
 
-    // 🟦 Gerar PDF
+    // Gerar PDF
     document.getElementById("btnPDF").addEventListener("click", () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'pt', 'a4');
@@ -195,7 +202,7 @@
       doc.save("lista_inscritos.pdf");
     });
 
-    // 🟧 Gerar CSV (Seguro)
+    // CSV Seguro
     document.getElementById("btnCSV").addEventListener("click", () => {
       const linhasVisiveis = Array.from(document.querySelectorAll("#corpo tr")).filter(tr => tr.style.display !== "none");
       const colunasDesejadas = {
@@ -206,7 +213,6 @@
         cpf: "CPF"
       };
 
-      // Detecta automaticamente colunas equivalentes no cabeçalho
       const mapa = {};
       for (const [key, nome] of Object.entries(colunasDesejadas)) {
         mapa[key] = headers.find(h => h.toLowerCase().includes(nome.toLowerCase().split(" ")[0])) || null;
@@ -222,7 +228,7 @@
         });
 
         const nome = linha[mapa.nome] || "";
-        const nomeSocial = ""; // sempre em branco
+        const nomeSocial = "";
         const sexo = linha[mapa.sexo] || "";
         const data = linha[mapa.dataNascimento] || "";
         const cpf = linha[mapa.cpf] || "";

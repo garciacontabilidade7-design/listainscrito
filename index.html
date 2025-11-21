@@ -149,10 +149,11 @@ function montarTabela(linhas) {
       const td = document.createElement("td");
 
       if (h === "PAGAMENTO") {
+        let pago = linha["PAGAMENTO"] || linha["Pagamento"] || linha["U"] || "";
         let cpf = linha["CPF"] || linha["cpf"] || "";
         cpf = cpf.toString().replace(/\D/g, "");
 
-        if (pagos.includes(cpf)) {
+        if (pago && pago.trim() !== "") {
           td.innerHTML = `<span style="color:green;font-weight:bold;">PAGO ✔</span>`;
         } else {
           td.innerHTML = `<button onclick="marcarPago('${cpf}')">Marcar como pago</button>`;

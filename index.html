@@ -90,23 +90,11 @@
 
       const todasColunas = Object.keys(json[0]);
 
-      // 🔥 CORREÇÃO — PEGAR DA COLUNA C ATÉ COLUNA L
-      const colunasBase = [
-        todasColunas[2],  // C → Nome
-        todasColunas[3],  // D
-        todasColunas[4],  // E
-        todasColunas[5],  // F
-        todasColunas[6],  // G
-        todasColunas[7],  // H
-        todasColunas[8],  // I
-        todasColunas[9],  // J
-        todasColunas[10], // K
-        todasColunas[11]  // L → Data nascimento responsável
-      ];
-
       const colSexo = todasColunas.find(c => c.toLowerCase().includes("sexo"));
-      const posicaoC = 2;
+      const colunasBase = todasColunas.slice(1, 13);
+      if (todasColunas[15]) colunasBase[7] = todasColunas[15];
 
+      const posicaoC = 2;
       if (colSexo && !colunasBase.includes(colSexo)) {
         colunasBase.splice(posicaoC, 0, colSexo);
       }
@@ -177,7 +165,7 @@
       document.getElementById("contador").textContent = "Total de inscritos: " + cont;
     });
 
-    // PDF
+    // 🟦 Gerar PDF
     document.getElementById("btnPDF").addEventListener("click", () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'pt', 'a4');
@@ -197,13 +185,17 @@
       doc.autoTable({
         head: [cabecalho],
         body: dadosTabela,
-        startY: 50
+        startY: 50,
+        styles: { fontSize: 8, cellPadding: 3, lineWidth: 0 },
+        headStyles: { fillColor: [76, 175, 80], textColor: 255, halign: "left", lineWidth: 0 },
+        alternateRowStyles: { fillColor: [226, 240, 217] },
+        bodyStyles: { fillColor: [255, 255, 255], lineWidth: 0 }
       });
 
       doc.save("lista_inscritos.pdf");
     });
 
-    // CSV (Seguro)
+    // 🟧 Gerar CSV (Seguro)
     document.getElementById("btnCSV").addEventListener("click", () => {
       const linhasVisiveis = Array.from(document.querySelectorAll("#corpo tr")).filter(tr => tr.style.display !== "none");
       const colunasDesejadas = {
@@ -214,6 +206,7 @@
         cpf: "CPF"
       };
 
+      // Detecta automaticamente colunas equivalentes no cabeçalho
       const mapa = {};
       for (const [key, nome] of Object.entries(colunasDesejadas)) {
         mapa[key] = headers.find(h => h.toLowerCase().includes(nome.toLowerCase().split(" ")[0])) || null;
@@ -229,7 +222,7 @@
         });
 
         const nome = linha[mapa.nome] || "";
-        const nomeSocial = "";
+        const nomeSocial = ""; // sempre em branco
         const sexo = linha[mapa.sexo] || "";
         const data = linha[mapa.dataNascimento] || "";
         const cpf = linha[mapa.cpf] || "";

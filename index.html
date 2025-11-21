@@ -116,6 +116,16 @@
         colunas[12]
       ];
 
+      // ─────────────────────────────────────────────
+      // OCULTAR COLUNAS EM BRANCO NA PRIMEIRA LINHA
+      // ─────────────────────────────────────────────
+      const primeiraLinha = json[0];
+
+      headers = headers.filter(h => {
+        const val = (primeiraLinha[h] ?? "").toString().trim();
+        return val !== "";
+      });
+
       dados = json;
 
       montarCabecalho();
@@ -139,6 +149,7 @@
 
       linhas.forEach(linha => {
         const tr = document.createElement("tr");
+
         headers.forEach(h => {
           const td = document.createElement("td");
           let val = (linha[h] ?? "").toString().trim();
@@ -161,6 +172,7 @@
 
           tr.appendChild(td);
         });
+
         corpo.appendChild(tr);
       });
     }
@@ -216,6 +228,7 @@
 
     document.getElementById("btnCSV").addEventListener("click", () => {
       const linhasVisiveis = Array.from(document.querySelectorAll("#corpo tr")).filter(tr => tr.style.display !== "none");
+      
       const colunasDesejadas = {
         nome: "Nome",
         nomeSocial: "Nome social",

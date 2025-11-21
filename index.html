@@ -77,29 +77,25 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
- <script>
-const API = "https://script.google.com/macros/s/AKfycbwOkzGBF4w7XXzC4Wi48sl3SfK82lXPrLiZix2-IxWAfwQjRt-RuUe_jAPRJEK95aWe/exec";
+  <script>
+    const SHEET_URL = "https://script.google.com/macros/s/AKfycbydUTKWvhFaOVGFK0qsdaHfrsc8odExY4YvGklpeHgCgeqS3R5faGOvMHSsyU6dkStO/exec";
 
-let headers = [];
-let dados = [];
-let pagos = [];
+    let headers = [];
+    let dados = [];
 
-function formatarDataISO(valor) {
-  if (!valor) return "";
-  const d = new Date(valor);
-  if (isNaN(d)) return valor;
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
-}
+    function formatarDataISO(valor) {
+      if (!valor) return "";
+      const d = new Date(valor);
+      if (isNaN(d)) return valor;
+      const dia = String(d.getDate()).padStart(2, "0");
+      const mes = String(d.getMonth() + 1).padStart(2, "0");
+      const ano = d.getFullYear();
+      return `${dia}/${mes}/${ano}`;
+    }
 
-async function carregarPagos() {
-  const resp = await fetch(API + "?acao=pagamentos");
-  pagos = await resp.json();
-}
-
-async function carregarInscritos() {
-  const resp = await fetch(API + "?acao=inscritos");
+    async function carregarInscritos(){
+  const resp = await fetch(SHEET_URL);
   const json = await resp.json();
-
   if (!json || json.length === 0) return;
 
   const colunas = Object.keys(json[0]);
@@ -117,9 +113,16 @@ async function carregarInscritos() {
     colunas[9],
     colunas[10],
     colunas[11],
-    colunas[12],
-    "PAGAMENTO"
+    colunas[12]
   ];
+
+  // 🔥 NOVA LÓGICA: remover colunas totalmente vazias em todas as linhas
+  headers = headers.filter(h => {
+    return json.some(linha => {
+      const valor = (linha[h] ?? "").toString().trim();
+      return valor !== "";
+    });
+  });
 
   dados = json;
 
@@ -128,85 +131,140 @@ async function carregarInscritos() {
   atualizarContagem();
 }
 
-function montarCabecalho() {
-  const headEl = document.getElementById("cabecalho");
-  headEl.innerHTML = "";
-  headers.forEach(h => {
-    const th = document.createElement("th");
-    th.textContent = h;
-    headEl.appendChild(th);
-  });
-}
+    function montarCabecalho(){
+      const headEl = document.getElementById("cabecalho");
+      headEl.innerHTML = "";
+      headers.forEach(h => {
+        const th = document.createElement("th");
+        th.textContent = h;
+        headEl.appendChild(th);
+      });
+    }
 
-function montarTabela(linhas) {
-  const corpo = document.getElementById("corpo");
-  corpo.innerHTML = "";
+    function montarTabela(linhas){
+      const corpo = document.getElementById("corpo");
+      corpo.innerHTML = "";
 
-  linhas.forEach(linha => {
-    const tr = document.createElement("tr");
+      linhas.forEach(linha => {
+        const tr = document.createElement("tr");
+        headers.forEach(h => {
+          const td = document.createElement("td");
+          let val = (linha[h] ?? "").toString().trim();
 
-    headers.forEach(h => {
-      const td = document.createElement("td");
+          if (h.toLowerCase().includes("data")) {
+            val = formatarDataISO(val);
+          }
 
-      if (h === "PAGAMENTO") {
-        let pago = linha["PAGAMENTO"] || linha["Pagamento"] || linha["U"] || "";
-        let cpf = linha["CPF"] || linha["cpf"] || "";
-        cpf = cpf.toString().replace(/\D/g, "");
+          if (h.toLowerCase().includes("whats")) {
+            const digits = val.replace(/\D/g, "");
+            if (digits) {
+              const withDDI = digits.startsWith("55") ? digits : "55" + digits;
+              td.innerHTML = `<a target="_blank" rel="noopener noreferrer" class="whatsapp-link" href="https://wa.me/${withDDI}">${digits}</a>`;
+            } else {
+              td.textContent = "";
+            }
+          } else {
+            td.textContent = val;
+          }
 
-        if (pago && pago.trim() !== "") {
-          td.innerHTML = `<span style="color:green;font-weight:bold;">PAGO ✔</span>`;
-        } else {
-          td.innerHTML = `<button onclick="marcarPago('${cpf}')">Marcar como pago</button>`;
-        }
+          tr.appendChild(td);
+        });
+        corpo.appendChild(tr);
+      });
+    }
 
-        tr.appendChild(td);
-        return;
-      }
+    function atualizarContagem(){
+      const linhas = document.querySelectorAll("#corpo tr:not([style*='display: none'])");
+      document.getElementById("contador").textContent = "Total de inscritos: " + linhas.length;
+    }
 
-      let val = (linha[h] ?? "").toString().trim();
+    document.getElementById("busca").addEventListener("input", function(){
+      const filtro = this.value.toLowerCase();
+      const linhas = document.querySelectorAll("#corpo tr");
+      let cont = 0;
 
-      if (h.toLowerCase().includes("data")) {
-        val = formatarDataISO(val);
-      }
+      linhas.forEach(tr => {
+        const nome = (tr.cells[0]?.textContent || "").toLowerCase();
+        const show = nome.includes(filtro);
+        tr.style.display = show ? "" : "none";
+        if (show) cont++;
+      });
 
-      if (h.toLowerCase().includes("whats")) {
-        const digits = val.replace(/\D/g, "");
-        if (digits) {
-          const withDDI = digits.startsWith("55") ? digits : "55" + digits;
-          td.innerHTML = `<a target="_blank" class="whatsapp-link" href="https://wa.me/${withDDI}">${digits}</a>`;
-        } else {
-          td.textContent = "";
-        }
-      } else {
-        td.textContent = val;
-      }
-
-      tr.appendChild(td);
+      document.getElementById("contador").textContent = "Total de inscritos: " + cont;
     });
 
-    corpo.appendChild(tr);
-  });
-}
+    document.getElementById("btnPDF").addEventListener("click", () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'pt', 'a4');
 
-async function marcarPago(cpf) {
-  if (!cpf) return;
+      const cabecalho = headers;
+      const dadosTabela = [];
+      document.querySelectorAll("#corpo tr").forEach(tr => {
+        if (tr.style.display !== "none") {
+          const linha = Array.from(tr.cells).map(td => td.textContent);
+          dadosTabela.push(linha);
+        }
+      });
 
-  await fetch(API + "?acao=pagar&cpf=" + cpf, { method: "POST" });
+      doc.setFontSize(14);
+      doc.text("Lista de Inscritos", doc.internal.pageSize.getWidth()/2, 30, { align: "center" });
 
-  await carregarPagos();
-  montarTabela(dados);
-}
+      doc.autoTable({
+        head: [cabecalho],
+        body: dadosTabela,
+        startY: 50,
+        styles: { fontSize: 8, cellPadding: 3, lineWidth: 0 },
+        headStyles: { fillColor: [76, 175, 80], textColor: 255, halign: "left", lineWidth: 0 },
+        alternateRowStyles: { fillColor: [226, 240, 217] },
+        bodyStyles: { fillColor: [255, 255, 255], lineWidth: 0 }
+      });
 
-function atualizarContagem() {
-  const linhas = document.querySelectorAll("#corpo tr");
-  document.getElementById("contador").textContent =
-    "Total de inscritos: " + linhas.length;
-}
+      doc.save("lista_inscritos.pdf");
+    });
 
-window.onload = async () => {
-  await carregarPagos();
-  await carregarInscritos();
-};
-</script>
+    document.getElementById("btnCSV").addEventListener("click", () => {
+      const linhasVisiveis = Array.from(document.querySelectorAll("#corpo tr")).filter(tr => tr.style.display !== "none");
+      const colunasDesejadas = {
+        nome: "Nome",
+        nomeSocial: "Nome social",
+        sexo: "Sexo",
+        dataNascimento: "Data de nascimento",
+        cpf: "CPF"
+      };
+
+      const mapa = {};
+      for (const [key, nome] of Object.entries(colunasDesejadas)) {
+        mapa[key] = headers.find(h => h.toLowerCase().includes(nome.toLowerCase().split(" ")[0])) || null;
+      }
+
+      const csvLinhas = [];
+      csvLinhas.push(Object.values(colunasDesejadas).join(";"));
+
+      linhasVisiveis.forEach(tr => {
+        const linha = {};
+        headers.forEach((h, i) => {
+          linha[h] = tr.cells[i]?.textContent || "";
+        });
+
+        const nome = linha[mapa.nome] || "";
+        const nomeSocial = "";
+        const sexo = linha[mapa.sexo] || "";
+        const data = linha[mapa.dataNascimento] || "";
+        const cpf = linha[mapa.cpf] || "";
+
+        csvLinhas.push([nome, nomeSocial, sexo, data, cpf].join(";"));
+      });
+
+      const blob = new Blob([csvLinhas.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "lista_seguro.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+
+    carregarInscritos();
+  </script>
 </body>
 </html>

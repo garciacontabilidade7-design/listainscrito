@@ -83,6 +83,16 @@
     let headers = [];
     let dados = [];
 
+    function formatarDataISO(valor) {
+      if (!valor) return "";
+      const d = new Date(valor);
+      if (isNaN(d)) return valor;
+      const dia = String(d.getDate()).padStart(2, "0");
+      const mes = String(d.getMonth() + 1).padStart(2, "0");
+      const ano = d.getFullYear();
+      return `${dia}/${mes}/${ano}`;
+    }
+
     async function carregarInscritos(){
       const resp = await fetch(SHEET_URL);
       const json = await resp.json();
@@ -90,23 +100,21 @@
 
       const colunas = Object.keys(json[0]);
 
-      // ORDEM FIXA: B, C, T, D, E, F, G, H, P, J, K, L, M  
       headers = [
-        colunas[1],  // B
-        colunas[2],  // C  (Data de Nascimento do Inscrito)  << CORRIGIDO
-        colunas[19], // T
-        colunas[3],  // D
-        colunas[4],  // E
-        colunas[5],  // F
-        colunas[6],  // G
-        colunas[7],  // H
-        colunas[15], // P
-        colunas[9],  // J
-        colunas[10], // K
-        colunas[11], // L (Data de Nascimento do Responsável) << CORRIGIDO
-        colunas[12]  // M
+        colunas[1],
+        colunas[2],
+        colunas[19],
+        colunas[3],
+        colunas[4],
+        colunas[5],
+        colunas[6],
+        colunas[7],
+        colunas[15],
+        colunas[9],
+        colunas[10],
+        colunas[11],
+        colunas[12]
       ];
-
 
       dados = json;
 
@@ -134,6 +142,10 @@
         headers.forEach(h => {
           const td = document.createElement("td");
           let val = (linha[h] ?? "").toString().trim();
+
+          if (h.toLowerCase().includes("data")) {
+            val = formatarDataISO(val);
+          }
 
           if (h.toLowerCase().includes("whats")) {
             const digits = val.replace(/\D/g, "");
@@ -173,7 +185,6 @@
       document.getElementById("contador").textContent = "Total de inscritos: " + cont;
     });
 
-    // Gerar PDF
     document.getElementById("btnPDF").addEventListener("click", () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'pt', 'a4');
@@ -203,7 +214,6 @@
       doc.save("lista_inscritos.pdf");
     });
 
-    // CSV Seguro
     document.getElementById("btnCSV").addEventListener("click", () => {
       const linhasVisiveis = Array.from(document.querySelectorAll("#corpo tr")).filter(tr => tr.style.display !== "none");
       const colunasDesejadas = {
